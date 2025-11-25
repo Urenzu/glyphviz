@@ -26,11 +26,11 @@ type Config = {
 // const glyphs = ['.', ':', '|', '/', '\\\\', '+', '*', '#', '@']; // utilitarian grid
 // const glyphs = ['.', '>', '»', '›', '»', '▷', '▶', '▸', '▹']; // directional
 
-const startPresetName = 'JP_RisingSun'; // set to 'custom' or any preset name from presets.ts
+const startPresetName = 'Purple Web'; // set to 'custom' or any preset name from presets.ts
 
 const customConfig: Config = {
-  cols: 54,
-  rows: 54,
+  cols: 80,
+  rows: 80,
   glyphs: ['.', '+', 'x', '✚', '✖', '◉', '◎', '⊕', '⊗'], // targeting/radar vibe
   palette: [
     [18, 18, 18], // near-black
@@ -60,7 +60,8 @@ const hud = {
   bands: document.querySelector<HTMLElement>('[data-band-count]'),
   scale: document.querySelector<HTMLElement>('[data-scale]'),
   speed: document.querySelector<HTMLElement>('[data-speed]'),
-  preset: document.querySelector<HTMLElement>('[data-preset]')
+  preset: document.querySelector<HTMLElement>('[data-preset]'),
+  fps: document.querySelector<HTMLElement>('[data-fps]')
 };
 
 const state = {
@@ -129,10 +130,6 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-function clamp01(v: number): number {
-  return Math.max(0, Math.min(1, v));
-}
-
 function mixColors(a: PaletteColor, b: PaletteColor, t: number): PaletteColor {
   return [
     Math.round(lerp(a[0], b[0], t)),
@@ -141,12 +138,12 @@ function mixColors(a: PaletteColor, b: PaletteColor, t: number): PaletteColor {
   ];
 }
 
-function samplePalette(t: number): string {
-  const steps = palette.length - 1;
+function samplePalette(pal: PaletteColor[], t: number): string {
+  const steps = pal.length - 1;
   const scaled = Math.max(0, Math.min(steps, t * steps));
   const idx = Math.floor(scaled);
   const frac = scaled - idx;
-  const color = mixColors(palette[idx], palette[Math.min(idx + 1, steps)], frac);
+  const color = mixColors(pal[idx], pal[Math.min(idx + 1, steps)], frac);
   return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
 }
 
@@ -154,10 +151,101 @@ function withAlpha(rgb: string, alpha: number): string {
   return rgb.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`);
 }
 
+const POW_LUT_SIZE = 2048;
+const powLut = new Float32Array(POW_LUT_SIZE + 1);
+for (let i = 0; i <= POW_LUT_SIZE; i += 1) {
+  powLut[i] = Math.pow(i / POW_LUT_SIZE, 1.18);
+}
+
+function shapeValue(v: number): number {
+  const idx = Math.max(0, Math.min(POW_LUT_SIZE, Math.floor(v * POW_LUT_SIZE)));
+  return powLut[idx];
+}
+
+class FrameMeter {
+  private last = 0;
+  private accum = 0;
+  private count = 0;
+  private readonly windowMs = 250;
+
+  tick(now: number): number | null {
+    if (this.last === 0) {
+      this.last = now;
+      return null;
+    }
+    const dt = now - this.last;
+    this.last = now;
+    this.accum += dt;
+    this.count += 1;
+    if (this.accum >= this.windowMs) {
+      const fps = (this.count * 1000) / this.accum;
+      this.accum = 0;
+      this.count = 0;
+      return fps;
+    }
+    return null;
+  }
+}
+
+class GlyphAtlas {
+  private images: (CanvasImageSource | null)[] = [];
+  private glyphCount = 0;
+  private bandCount = 0;
+  private size = 0;
+  private readonly useOffscreen = typeof OffscreenCanvas !== 'undefined';
+
+  rebuild(cellSize: number, glyphSet: string[], bandColors: string[]) {
+    this.glyphCount = glyphSet.length;
+    this.bandCount = bandColors.length;
+    this.size = Math.max(1, Math.ceil(cellSize * 1.4));
+    this.images = new Array(this.glyphCount * this.bandCount).fill(null);
+    if (this.glyphCount === 0 || this.bandCount === 0) return;
+
+    const font = `${cellSize * 0.9}px "DM Mono", "Space Grotesk", monospace`;
+    const half = this.size * 0.5;
+    for (let band = 0; band < this.bandCount; band += 1) {
+      const color = bandColors[band];
+      for (let i = 0; i < this.glyphCount; i += 1) {
+        const canvas = this.useOffscreen
+          ? new OffscreenCanvas(this.size, this.size)
+          : (document.createElement('canvas') as HTMLCanvasElement | OffscreenCanvas);
+        canvas.width = this.size;
+        canvas.height = this.size;
+        const context = (canvas as OffscreenCanvas | HTMLCanvasElement).getContext('2d') as
+          | CanvasRenderingContext2D
+          | OffscreenCanvasRenderingContext2D
+          | null;
+        if (!context) continue;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.font = font;
+        context.fillStyle = color;
+        context.shadowColor = withAlpha(color, 0.35);
+        context.shadowBlur = Math.max(6, cellSize * 0.6);
+        context.fillText(glyphSet[i], half, half);
+        const image =
+          this.useOffscreen && 'transferToImageBitmap' in canvas
+            ? (canvas as OffscreenCanvas).transferToImageBitmap()
+            : (canvas as HTMLCanvasElement);
+        this.images[band * this.glyphCount + i] = image;
+      }
+    }
+  }
+
+  get sizePx(): number {
+    return this.size;
+  }
+
+  get(band: number, glyphIndex: number): CanvasImageSource | null {
+    const idx = band * this.glyphCount + glyphIndex;
+    return this.images[idx] ?? null;
+  }
+}
+
 function buildConfig(preset: Preset): Config {
   return {
-    cols: 54,
-    rows: 54,
+    cols: 80,
+    rows: 80,
     glyphs: preset.glyphs,
     palette: preset.palette,
     bandCount: preset.bandCount,
@@ -179,6 +267,57 @@ let palette = config.palette;
 let glyphs = config.glyphs;
 let noise = new Perlin2D(config.seed);
 let currentPresetName = startPresetName === 'custom' ? 'custom' : presets[presetIndex]?.name ?? 'custom';
+const glyphAtlas = new GlyphAtlas();
+const fpsMeter = new FrameMeter();
+
+let bandColors: string[] = [];
+let bandGlyphIndex = new Uint16Array(0);
+let baseX = new Float32Array(0);
+let baseY = new Float32Array(0);
+let noiseBaseX = new Float32Array(0);
+let noiseBaseY = new Float32Array(0);
+let sinPhase = new Float32Array(0);
+let cachedFontSize = 0;
+
+function rebuildBandCache() {
+  const bands = Math.max(1, config.bandCount);
+  bandColors = new Array(bands);
+  bandGlyphIndex = new Uint16Array(bands);
+  const denom = Math.max(1, bands - 1);
+  for (let i = 0; i < bands; i += 1) {
+    bandColors[i] = samplePalette(palette, i / denom);
+    bandGlyphIndex[i] = i % glyphs.length;
+  }
+}
+
+function rebuildGridCache() {
+  const { cols, rows } = config;
+  baseX = new Float32Array(cols);
+  baseY = new Float32Array(rows);
+  noiseBaseX = new Float32Array(cols);
+  noiseBaseY = new Float32Array(rows);
+  sinPhase = new Float32Array(cols * rows);
+
+  for (let x = 0; x < cols; x += 1) {
+    baseX[x] = (x + 0.5) * state.cellSize;
+    noiseBaseX[x] = x * config.scale;
+  }
+
+  for (let y = 0; y < rows; y += 1) {
+    baseY[y] = (y + 0.5) * state.cellSize;
+    noiseBaseY[y] = y * config.scale;
+    const rowBase = y * cols;
+    const yPhase = y * 0.07;
+    for (let x = 0; x < cols; x += 1) {
+      sinPhase[rowBase + x] = x * 0.1 + yPhase;
+    }
+  }
+}
+
+function refreshGlyphAtlas() {
+  if (!glyphs.length || !bandColors.length) return;
+  glyphAtlas.rebuild(state.cellSize, glyphs, bandColors);
+}
 
 function resizeCanvas() {
   const rect = frame.getBoundingClientRect();
@@ -193,6 +332,9 @@ function resizeCanvas() {
   state.width = target;
   state.height = target;
   state.cellSize = target / config.cols;
+  cachedFontSize = 0;
+  rebuildGridCache();
+  refreshGlyphAtlas();
 }
 
 function updateHud() {
@@ -200,6 +342,7 @@ function updateHud() {
   if (hud.scale) hud.scale.textContent = config.scale.toFixed(3);
   if (hud.speed) hud.speed.textContent = config.drift.toFixed(2);
   if (hud.preset) hud.preset.textContent = currentPresetName;
+  if (hud.fps && !hud.fps.textContent) hud.fps.textContent = '---';
 }
 
 function render(timeMs: number) {
@@ -208,34 +351,66 @@ function render(timeMs: number) {
   ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
   ctx.fillRect(0, 0, state.width, state.height);
 
+  const fontSize = state.cellSize * 0.9;
+  if (fontSize !== cachedFontSize) {
+    ctx.font = `${fontSize}px "DM Mono", "Space Grotesk", monospace`;
+    cachedFontSize = fontSize;
+  }
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `${state.cellSize * 0.9}px "DM Mono", "Space Grotesk", monospace`;
-  ctx.shadowBlur = 10;
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
 
-  for (let y = 0; y < config.rows; y += 1) {
-    const ny = y * config.scale + t * config.drift * 0.35;
-    for (let x = 0; x < config.cols; x += 1) {
-      const nx = x * config.scale + t * config.drift;
+  const { cols, rows, drift, jitter, bandCount } = config;
+  const jitterStrength = jitter * state.cellSize;
+  const jitterXScale = jitterStrength * 0.35;
+  const jitterYScale = jitterStrength * 0.2;
+  const sinAmp = state.cellSize * 0.08;
+  const atlasSize = glyphAtlas.sizePx;
+  const atlasHalf = atlasSize * 0.5;
+  const bandMax = bandCount - 1;
+  const timeWave = t * 0.9;
+
+  for (let y = 0; y < rows; y += 1) {
+    const ny = noiseBaseY[y] + t * drift * 0.35;
+    const py = baseY[y];
+    const rowBase = y * cols;
+    for (let x = 0; x < cols; x += 1) {
+      const nx = noiseBaseX[x] + t * drift;
       const n = noise.noise(nx, ny);
-      const normalized = clamp01((n + 1) * 0.5);
-      const shaped = Math.pow(normalized, 1.18);
-      const band = Math.min(config.bandCount - 1, Math.floor(shaped * config.bandCount));
-      const glyph = glyphs[band % glyphs.length];
-      const color = samplePalette(band / (config.bandCount - 1));
+      let normalized = (n + 1) * 0.5;
+      if (normalized < 0) normalized = 0;
+      else if (normalized > 1) normalized = 1;
+      const shaped = shapeValue(normalized);
+      let band = (shaped * bandCount) | 0;
+      if (band > bandMax) band = bandMax;
+      const glyphIndex = bandGlyphIndex[band];
 
-      const jitter = noise.noise(nx * 2.4 - 3.1, ny * 2.4 + 7.7) * config.jitter;
-      const offsetX = jitter * state.cellSize * 0.35;
-      const offsetY = Math.sin(t * 0.9 + x * 0.1 + y * 0.07) * state.cellSize * 0.08 + jitter * state.cellSize * 0.2;
+      const jitterNoise = noise.noise(nx * 2.4 - 3.1, ny * 2.4 + 7.7);
+      const px = baseX[x] + jitterNoise * jitterXScale;
+      const pyOffset = Math.sin(timeWave + sinPhase[rowBase + x]) * sinAmp + jitterNoise * jitterYScale;
+      const alpha = 0.7 + shaped * 0.28;
 
-      ctx.fillStyle = color;
-      ctx.shadowColor = withAlpha(color, 0.35);
-      ctx.globalAlpha = 0.7 + shaped * 0.28;
-      ctx.fillText(glyph, (x + 0.5) * state.cellSize + offsetX, (y + 0.5) * state.cellSize + offsetY);
+      ctx.globalAlpha = alpha;
+      const image = glyphAtlas.get(band, glyphIndex);
+      if (image) {
+        ctx.drawImage(image, px - atlasHalf, py + pyOffset - atlasHalf, atlasSize, atlasSize);
+      } else {
+        const color = bandColors[band];
+        ctx.fillStyle = color;
+        ctx.shadowColor = withAlpha(color, 0.35);
+        ctx.shadowBlur = Math.max(6, state.cellSize * 0.6);
+        ctx.fillText(glyphs[glyphIndex], px, py + pyOffset);
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+      }
     }
   }
 
   ctx.globalAlpha = 1;
+
+  const fps = fpsMeter.tick(timeMs);
+  if (fps && hud.fps) hud.fps.textContent = fps.toFixed(0);
   requestAnimationFrame(render);
 }
 
@@ -250,6 +425,8 @@ function setConfig(next: Config, name: string) {
   glyphs = next.glyphs;
   noise = new Perlin2D(next.seed);
   currentPresetName = name;
+  rebuildBandCache();
+  resizeCanvas();
   updateHud();
 }
 
@@ -272,9 +449,6 @@ function applyPresetByName(name: string) {
 }
 
 applyPresetByName(startPresetName);
-
-resizeCanvas();
-updateHud();
 window.addEventListener('resize', resizeCanvas);
 requestAnimationFrame(render);
 
