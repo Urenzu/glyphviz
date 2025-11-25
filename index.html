@@ -8,15 +8,14 @@
   </head>
   <body>
     <div id="app" class="app-shell">
+      <div class="chrome">
+        <button id="view-toggle" class="view-toggle" type="button" aria-pressed="false">
+          <span class="glyph-mark" aria-hidden="true"></span>
+          <span class="label">Theater Mode</span>
+        </button>
+      </div>
       <div class="canvas-frame">
         <canvas id="glyph-canvas" aria-label="procedural glyph field"></canvas>
-        <div class="hud">
-          <span class="pill">bands <strong data-band-count></strong></span>
-          <span class="pill">scale <strong data-scale></strong></span>
-          <span class="pill">drift <strong data-speed></strong></span>
-          <span class="pill">preset <strong data-preset></strong></span>
-          <span class="pill">fps <strong data-fps></strong></span>
-        </div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

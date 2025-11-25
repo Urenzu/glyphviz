@@ -43,8 +43,8 @@ type Config = {
   seed: number;
 };
 
-const startPresetName: string = 'Perspective_Sprawl'; // set to 'custom' or any preset name from presets.ts
-const GRID_SIZE = 80;
+const startPresetName: string = 'Prism_Vortex'; // set to 'custom' or any preset name from presets.ts
+const GRID_SIZE = 100;
 
 const customConfig: Config = {
   cols: GRID_SIZE,
@@ -83,20 +83,19 @@ const customConfig: Config = {
 const canvas = document.querySelector<HTMLCanvasElement>('#glyph-canvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 const frame = canvas.parentElement as HTMLElement;
-
-const hud = {
-  bands: document.querySelector<HTMLElement>('[data-band-count]'),
-  scale: document.querySelector<HTMLElement>('[data-scale]'),
-  speed: document.querySelector<HTMLElement>('[data-speed]'),
-  preset: document.querySelector<HTMLElement>('[data-preset]'),
-  fps: document.querySelector<HTMLElement>('[data-fps]')
-};
+const viewToggle = document.querySelector<HTMLButtonElement>('#view-toggle');
 
 const state = {
   width: 640,
   height: 640,
-  cellSize: 12
+  cellSize: 12,
+  cellWidth: 12,
+  cellHeight: 12
 };
+
+let displayMode: 'square' | 'theater' = 'square';
+let controlsVisible = false;
+let hideChromeTimeout: number | null = null;
 
 function mulberry32(seed: number): () => number {
   return () => {
@@ -166,13 +165,20 @@ function mixColors(a: PaletteColor, b: PaletteColor, t: number): PaletteColor {
   ];
 }
 
+const BRIGHTEN = 1.12; // push highlights slightly brighter
+
 function samplePalette(pal: PaletteColor[], t: number): string {
   const steps = pal.length - 1;
   const scaled = Math.max(0, Math.min(steps, t * steps));
   const idx = Math.floor(scaled);
   const frac = scaled - idx;
   const color = mixColors(pal[idx], pal[Math.min(idx + 1, steps)], frac);
-  return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+  const boosted: PaletteColor = [
+    Math.min(255, Math.round(color[0] * BRIGHTEN)),
+    Math.min(255, Math.round(color[1] * BRIGHTEN)),
+    Math.min(255, Math.round(color[2] * BRIGHTEN))
+  ];
+  return `rgb(${boosted[0]}, ${boosted[1]}, ${boosted[2]})`;
 }
 
 function withAlpha(rgb: string, alpha: number): string {
@@ -412,6 +418,8 @@ function rebuildBandCache() {
 
 function rebuildGridCache() {
   const { cols, rows } = config;
+  const cellWidth = state.cellWidth;
+  const cellHeight = state.cellHeight;
   baseX = new Float32Array(cols);
   baseY = new Float32Array(rows);
   noiseBaseX = new Float32Array(cols);
@@ -419,12 +427,12 @@ function rebuildGridCache() {
   sinPhase = new Float32Array(cols * rows);
 
   for (let x = 0; x < cols; x += 1) {
-    baseX[x] = (x + 0.5) * state.cellSize;
+    baseX[x] = (x + 0.5) * cellWidth;
     noiseBaseX[x] = x * config.scale;
   }
 
   for (let y = 0; y < rows; y += 1) {
-    baseY[y] = (y + 0.5) * state.cellSize;
+    baseY[y] = (y + 0.5) * cellHeight;
     noiseBaseY[y] = y * config.scale;
     const rowBase = y * cols;
     const yPhase = y * 0.07;
@@ -442,27 +450,62 @@ function refreshGlyphAtlas() {
 function resizeCanvas() {
   const rect = frame.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
-  const target = Math.min(rect.width, rect.height);
-  canvas.width = target * dpr;
-  canvas.height = target * dpr;
-  canvas.style.width = `${target}px`;
-  canvas.style.height = `${target}px`;
+  const targetWidth = displayMode === 'theater' ? rect.width : Math.min(rect.width, rect.height);
+  const targetHeight = displayMode === 'theater' ? rect.height : targetWidth;
+  const cellWidth = targetWidth / config.cols;
+  const cellHeight = targetHeight / config.rows;
+  const cellSize = Math.min(cellWidth, cellHeight);
+  canvas.width = targetWidth * dpr;
+  canvas.height = targetHeight * dpr;
+  canvas.style.width = `${targetWidth}px`;
+  canvas.style.height = `${targetHeight}px`;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
-  state.width = target;
-  state.height = target;
-  state.cellSize = target / config.cols;
+  state.width = targetWidth;
+  state.height = targetHeight;
+  state.cellWidth = cellWidth;
+  state.cellHeight = cellHeight;
+  state.cellSize = cellSize;
   cachedFontSize = 0;
   rebuildGridCache();
   refreshGlyphAtlas();
 }
 
 function updateHud() {
-  if (hud.bands) hud.bands.textContent = `${config.bandCount}`;
-  if (hud.scale) hud.scale.textContent = config.scale.toFixed(3);
-  if (hud.speed) hud.speed.textContent = config.drift.toFixed(2);
-  if (hud.preset) hud.preset.textContent = currentPresetName;
-  if (hud.fps && !hud.fps.textContent) hud.fps.textContent = '---';
+  // HUD disabled
+}
+
+function updateToggleLabel() {
+  if (!viewToggle) return;
+  const theater = displayMode === 'theater';
+  viewToggle.setAttribute('aria-pressed', theater ? 'true' : 'false');
+  const label = viewToggle.querySelector<HTMLElement>('.label');
+  if (label) {
+    label.textContent = theater ? 'Square Mode' : 'Theater Mode';
+  }
+}
+
+function showChromeTemporarily() {
+  if (!controlsVisible) {
+    document.body.classList.add('controls-visible');
+    controlsVisible = true;
+  }
+  if (hideChromeTimeout !== null) {
+    window.clearTimeout(hideChromeTimeout);
+  }
+  hideChromeTimeout = window.setTimeout(() => {
+    document.body.classList.remove('controls-visible');
+    controlsVisible = false;
+    hideChromeTimeout = null;
+  }, 2400);
+}
+
+function toggleDisplayMode() {
+  displayMode = displayMode === 'square' ? 'theater' : 'square';
+  document.body.classList.toggle('theater-mode', displayMode === 'theater');
+  updateToggleLabel();
+  resizeCanvas();
+  showChromeTemporarily();
 }
 
 function render(timeMs: number) {
@@ -553,14 +596,16 @@ function render(timeMs: number) {
             break;
           }
           case 'tunnel': {
-            const cx = x / cols - 0.5;
-            const cy = y / rows - 0.5;
-            const angle = Math.atan2(cy, cx);
+            const cx = x / cols - 0.5 + Math.sin(t * 0.35) * 0.05;
+            const cy = y / rows - 0.5 + Math.cos(t * 0.25) * 0.05;
+            const angle = Math.atan2(cy, cx) + t * 0.4;
             const radius = Math.hypot(cx, cy);
-            const twist = noise.noise(angle * 1.2 + t * 0.3, radius * 0.8 + t * 0.5);
-            const depth = 1 / Math.max(0.15, radius + 0.1 + twist * 0.05);
-            const stripe = Math.sin((angle + twist * 0.4) * 8 + t * 2);
-            n = stripe * 0.35 + depth * 0.65;
+            const radial = Math.log1p(radius * 6);
+            const twist = noise.noise(angle * 1.6 + t * 0.6, radial * 3 + t * 0.4);
+            const depth = 1 / Math.max(0.12, radial + 0.08 + twist * 0.04);
+            const stripe = Math.sin(angle * 10 + t * 3 + radial * 18 + twist * 2);
+            const jitter = noise.noise(angle * 4 - t * 0.5, radial * 5 + t * 0.7);
+            n = depth * 0.6 + stripe * 0.25 + jitter * 0.15;
             break;
           }
           case 'ridged': {
@@ -698,7 +743,6 @@ function render(timeMs: number) {
   ctx.globalAlpha = 1;
 
   const fps = fpsMeter.tick(timeMs);
-  if (fps && hud.fps) hud.fps.textContent = fps.toFixed(0);
   requestAnimationFrame(render);
 }
 
@@ -730,7 +774,6 @@ function setConfig(next: Config, name: string) {
   currentPresetName = name;
   rebuildBandCache();
   resizeCanvas();
-  updateHud();
   syncWorkerConfig();
 }
 
@@ -755,6 +798,14 @@ function applyPresetByName(name: string) {
 applyPresetByName(startPresetName);
 startNoiseWorker();
 syncWorkerConfig();
+updateToggleLabel();
+showChromeTemporarily();
+
+const wakeChrome = () => showChromeTemporarily();
+window.addEventListener('mousemove', wakeChrome);
+window.addEventListener('touchstart', wakeChrome, { passive: true });
+viewToggle?.addEventListener('click', toggleDisplayMode);
+viewToggle?.addEventListener('focus', showChromeTemporarily);
 window.addEventListener('resize', resizeCanvas);
 requestAnimationFrame(render);
 

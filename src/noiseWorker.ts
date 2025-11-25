@@ -235,14 +235,16 @@ function computeFrame(timeMs: number) {
           break;
         }
         case 'tunnel': {
-          const cx = (x / cols) - 0.5;
-          const cy = (y / rows) - 0.5;
-          const angle = Math.atan2(cy, cx);
+          const cx = x / cols - 0.5 + Math.sin(t * 0.35) * 0.05;
+          const cy = y / rows - 0.5 + Math.cos(t * 0.25) * 0.05;
+          const angle = Math.atan2(cy, cx) + t * 0.4;
           const radius = Math.hypot(cx, cy);
-          const twist = noise.noise(angle * 1.2 + t * 0.3, radius * 0.8 + t * 0.5);
-          const depth = 1 / Math.max(0.15, radius + 0.1 + twist * 0.05);
-          const stripe = Math.sin((angle + twist * 0.4) * 8 + t * 2);
-          n = (stripe * 0.35 + depth * 0.65);
+          const radial = Math.log1p(radius * 6);
+          const twist = noise.noise(angle * 1.6 + t * 0.6, radial * 3 + t * 0.4);
+          const depth = 1 / Math.max(0.12, radial + 0.08 + twist * 0.04);
+          const stripe = Math.sin(angle * 10 + t * 3 + radial * 18 + twist * 2);
+          const jitter = noise.noise(angle * 4 - t * 0.5, radial * 5 + t * 0.7);
+          n = depth * 0.6 + stripe * 0.25 + jitter * 0.15;
           break;
         }
         case 'ridged': {
