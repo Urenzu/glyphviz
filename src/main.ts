@@ -8,29 +8,28 @@ type Config = {
   rows: number;
   bandCount: number;
   scale: number;
+  secondaryScale: number;
   drift: number;
   jitter: number;
+  driftWaveAmp: number;
+  driftWaveFreq: number;
+  waveAmp: number;
+  alphaBase: number;
+  alphaGain: number;
+  warpStrength: number;
+  warpFrequency: number;
+  style: 'perlin' | 'ridged' | 'stripe' | 'worley' | 'curl' | 'cyber';
   glyphs: string[];
   palette: PaletteColor[];
   seed: number;
 };
 
-// Glyph sets to try (uncomment or copy into customConfig as desired):
-// const glyphs = ['.', ':', '-', '+', '=', '*', '%', '#', '@']; // clean ASCII
-// const glyphs = ['`', '.', ',', ':', ';', '!', '*', 'o', 'O', '0', '#', '@']; // hazy CRT
-// const glyphs = ['·', '˙', '∷', '─', '┼', '╬', '▓', '█']; // blocky grid
-// const glyphs = ['.', '⌁', '⌇', '✶', '✸', '✺', '✽', '✦', '✧']; // sparkly
-// const glyphs = ['.', '∴', '∆', '◊', '◇', '◆', '▢', '▣', '▦']; // geometric
-// const glyphs = ['.', '+', 'x', '✚', '✖', '◉', '◎', '⊕', '⊗']; // targeting/radar
-// const glyphs = ['.', ':', '-', '_', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']; // bars
-// const glyphs = ['.', ':', '|', '/', '\\\\', '+', '*', '#', '@']; // utilitarian grid
-// const glyphs = ['.', '>', '»', '›', '»', '▷', '▶', '▸', '▹']; // directional
-
-const startPresetName = 'Purple Web'; // set to 'custom' or any preset name from presets.ts
+const startPresetName: string = 'Cyber_Shard'; // set to 'custom' or any preset name from presets.ts
+const GRID_SIZE = 80;
 
 const customConfig: Config = {
-  cols: 80,
-  rows: 80,
+  cols: GRID_SIZE,
+  rows: GRID_SIZE,
   glyphs: ['.', '+', 'x', '✚', '✖', '◉', '◎', '⊕', '⊗'], // targeting/radar vibe
   palette: [
     [18, 18, 18], // near-black
@@ -43,18 +42,23 @@ const customConfig: Config = {
   ],
   bandCount: 8,
   scale: 0.045,
+  secondaryScale: 0.08,
   drift: 0.16,
+  driftWaveAmp: 0,
+  driftWaveFreq: 1,
   jitter: 0.32,
+  waveAmp: 0.08,
+  alphaBase: 0.7,
+  alphaGain: 0.28,
+  warpStrength: 0,
+  warpFrequency: 0.4,
+  style: 'perlin',
   seed: 707
 };
 
-const canvas = document.querySelector<HTMLCanvasElement>('#glyph-canvas');
-const ctx = canvas?.getContext('2d');
-const frame = canvas?.parentElement as HTMLElement | null;
-
-if (!canvas || !ctx || !frame) {
-  throw new Error('Canvas element missing from page.');
-}
+const canvas = document.querySelector<HTMLCanvasElement>('#glyph-canvas') as HTMLCanvasElement;
+const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+const frame = canvas.parentElement as HTMLElement;
 
 const hud = {
   bands: document.querySelector<HTMLElement>('[data-band-count]'),
@@ -162,6 +166,24 @@ function shapeValue(v: number): number {
   return powLut[idx];
 }
 
+type WorkerFrameData = {
+  type: 'frameData';
+  bands: Uint16Array;
+  shaped: Float32Array;
+  jitters: Float32Array;
+  cols: number;
+  rows: number;
+};
+
+type WorkerReady = { type: 'ready' };
+
+let noiseWorker: Worker | null = null;
+let workerReady = false;
+let workerPendingFrame = false;
+let workerBands: Uint16Array | null = null;
+let workerShaped: Float32Array | null = null;
+let workerJitters: Float32Array | null = null;
+
 class FrameMeter {
   private last = 0;
   private accum = 0;
@@ -242,16 +264,80 @@ class GlyphAtlas {
   }
 }
 
+function startNoiseWorker() {
+  if (typeof Worker === 'undefined' || noiseWorker) return;
+  noiseWorker = new Worker(new URL('./noiseWorker.ts', import.meta.url), { type: 'module' });
+  noiseWorker.onmessage = (event: MessageEvent<WorkerReady | WorkerFrameData>) => {
+    const data = event.data;
+    if (data.type === 'ready') {
+      workerReady = true;
+      workerPendingFrame = false;
+      return;
+    }
+    if (data.type === 'frameData') {
+      workerPendingFrame = false;
+      if (data.cols !== config.cols || data.rows !== config.rows) {
+        return;
+      }
+      workerBands = data.bands;
+      workerShaped = data.shaped;
+      workerJitters = data.jitters;
+    }
+  };
+  noiseWorker.onerror = () => {
+    noiseWorker?.terminate();
+    noiseWorker = null;
+    workerReady = false;
+    workerPendingFrame = false;
+    workerBands = null;
+    workerShaped = null;
+    workerJitters = null;
+  };
+}
+
+function syncWorkerConfig() {
+  if (!noiseWorker) return;
+  workerReady = false;
+  workerPendingFrame = false;
+  workerBands = null;
+  workerShaped = null;
+  workerJitters = null;
+  noiseWorker.postMessage({
+    type: 'init',
+    config: {
+      cols: config.cols,
+      rows: config.rows,
+      scale: config.scale,
+      secondaryScale: config.secondaryScale,
+      drift: config.drift,
+      driftWaveAmp: config.driftWaveAmp,
+      driftWaveFreq: config.driftWaveFreq,
+      style: config.style,
+      bandCount: config.bandCount,
+      seed: config.seed
+    }
+  });
+}
+
 function buildConfig(preset: Preset): Config {
   return {
-    cols: 80,
-    rows: 80,
+    cols: GRID_SIZE,
+    rows: GRID_SIZE,
     glyphs: preset.glyphs,
     palette: preset.palette,
     bandCount: preset.bandCount,
     scale: preset.scale,
+    secondaryScale: preset.secondaryScale ?? preset.scale * 1.6,
     drift: preset.drift,
+    driftWaveAmp: preset.driftWaveAmp ?? 0,
+    driftWaveFreq: preset.driftWaveFreq ?? 1,
     jitter: preset.jitter,
+    waveAmp: preset.waveAmp ?? 0.08,
+    alphaBase: preset.alphaBase ?? 0.7,
+    alphaGain: preset.alphaGain ?? 0.28,
+    warpStrength: preset.warpStrength ?? 0,
+    warpFrequency: preset.warpFrequency ?? 0.4,
+    style: preset.style ?? 'perlin',
     seed: preset.seed ?? 1
   };
 }
@@ -347,6 +433,10 @@ function updateHud() {
 
 function render(timeMs: number) {
   const t = timeMs * 0.001;
+  if (noiseWorker && workerReady && !workerPendingFrame) {
+    workerPendingFrame = true;
+    noiseWorker.postMessage({ type: 'frame', time: timeMs });
+  }
   ctx.clearRect(0, 0, state.width, state.height);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
   ctx.fillRect(0, 0, state.width, state.height);
@@ -361,35 +451,109 @@ function render(timeMs: number) {
   ctx.shadowBlur = 0;
   ctx.shadowColor = 'transparent';
 
-  const { cols, rows, drift, jitter, bandCount } = config;
+  const { cols, rows, drift, jitter, bandCount, waveAmp, alphaBase, alphaGain, warpStrength, warpFrequency } = config;
+  const driftWave = 1 + config.driftWaveAmp * Math.sin(t * config.driftWaveFreq);
+  const driftNow = drift * driftWave;
   const jitterStrength = jitter * state.cellSize;
   const jitterXScale = jitterStrength * 0.35;
   const jitterYScale = jitterStrength * 0.2;
-  const sinAmp = state.cellSize * 0.08;
+  const sinAmp = state.cellSize * waveAmp;
   const atlasSize = glyphAtlas.sizePx;
   const atlasHalf = atlasSize * 0.5;
   const bandMax = bandCount - 1;
   const timeWave = t * 0.9;
+  const centerX = state.width * 0.5;
+  const centerY = state.height * 0.5;
+  const expectedCells = cols * rows;
+  const useWorker =
+    workerBands &&
+    workerShaped &&
+    workerJitters &&
+    workerBands.length === expectedCells &&
+    workerShaped.length === expectedCells &&
+    workerJitters.length === expectedCells;
 
   for (let y = 0; y < rows; y += 1) {
-    const ny = noiseBaseY[y] + t * drift * 0.35;
+    const ny = useWorker ? 0 : noiseBaseY[y] + t * driftNow * 0.35;
     const py = baseY[y];
     const rowBase = y * cols;
     for (let x = 0; x < cols; x += 1) {
-      const nx = noiseBaseX[x] + t * drift;
-      const n = noise.noise(nx, ny);
-      let normalized = (n + 1) * 0.5;
-      if (normalized < 0) normalized = 0;
-      else if (normalized > 1) normalized = 1;
-      const shaped = shapeValue(normalized);
-      let band = (shaped * bandCount) | 0;
-      if (band > bandMax) band = bandMax;
+      const idx = rowBase + x;
+      let band: number;
+      let shapedVal: number;
+      let jitterNoise: number;
+      if (useWorker) {
+        band = workerBands![idx];
+        shapedVal = workerShaped![idx];
+        jitterNoise = workerJitters![idx];
+      } else {
+        const nx = noiseBaseX[x] + t * driftNow;
+        let n: number;
+        switch (config.style) {
+          case 'ridged': {
+            const n1 = noise.noise(nx, ny);
+            const n2 = noise.noise(nx * config.secondaryScale, ny * config.secondaryScale);
+            n = 1 - Math.abs(n1 * 0.7 + n2 * 0.3);
+            break;
+          }
+          case 'stripe': {
+            n = Math.sin(nx * 2.2 + ny * 0.4 + t * driftNow * 2.4);
+            break;
+          }
+          case 'worley': {
+            const d = 1 - Math.min(1, Math.abs(noise.noise(nx * config.secondaryScale, ny * config.secondaryScale)) * 1.4);
+            n = d;
+            break;
+          }
+          case 'curl': {
+            const eps = 0.35;
+            const curlStrength = 1.2;
+            const n0 = noise.noise(nx, ny);
+            const nx1 = noise.noise(nx, ny + eps) - noise.noise(nx, ny - eps);
+            const ny1 = noise.noise(nx - eps, ny) - noise.noise(nx + eps, ny);
+            const advX = nx + nx1 * curlStrength;
+            const advY = ny + ny1 * curlStrength;
+            const nAdv = noise.noise(advX, advY);
+            n = n0 * 0.35 + nAdv * 0.65;
+            break;
+          }
+          case 'cyber': {
+            const stripe = Math.sin(nx * 3.2 + t * driftNow * 3) * 0.6;
+            const base = noise.noise(nx * 1.3, ny * 1.1) * 0.4;
+            const ridged = 1 - Math.abs(noise.noise(nx * config.secondaryScale, ny * config.secondaryScale));
+            n = stripe + base + ridged * 0.6;
+            break;
+          }
+          case 'perlin':
+          default: {
+            n = noise.noise(nx, ny);
+          }
+        }
+        let normalized = (n + 1) * 0.5;
+        if (normalized < 0) normalized = 0;
+        else if (normalized > 1) normalized = 1;
+        shapedVal = shapeValue(normalized);
+        band = (shapedVal * bandCount) | 0;
+        if (band > bandMax) band = bandMax;
+        jitterNoise = noise.noise(nx * 2.4 - 3.1, ny * 2.4 + 7.7);
+      }
       const glyphIndex = bandGlyphIndex[band];
 
-      const jitterNoise = noise.noise(nx * 2.4 - 3.1, ny * 2.4 + 7.7);
-      const px = baseX[x] + jitterNoise * jitterXScale;
-      const pyOffset = Math.sin(timeWave + sinPhase[rowBase + x]) * sinAmp + jitterNoise * jitterYScale;
-      const alpha = 0.7 + shaped * 0.28;
+      let px = baseX[x] + jitterNoise * jitterXScale;
+      let pyOffset = Math.sin(timeWave + sinPhase[idx]) * sinAmp + jitterNoise * jitterYScale;
+
+      if (warpStrength !== 0) {
+        const cy = py;
+        const cx = px;
+        const dx = cx - centerX;
+        const dy = cy - centerY;
+        const dist = Math.hypot(dx, dy);
+        const twist = warpStrength * Math.sin(dist * warpFrequency - t * 0.7);
+        px += -dy * twist;
+        pyOffset += dx * twist;
+      }
+
+      const alpha = alphaBase + shapedVal * alphaGain;
 
       ctx.globalAlpha = alpha;
       const image = glyphAtlas.get(band, glyphIndex);
@@ -417,10 +581,20 @@ function render(timeMs: number) {
 function setConfig(next: Config, name: string) {
   config.bandCount = next.bandCount;
   config.scale = next.scale;
+  config.secondaryScale = next.secondaryScale;
   config.drift = next.drift;
+  config.driftWaveAmp = next.driftWaveAmp;
+  config.driftWaveFreq = next.driftWaveFreq;
   config.jitter = next.jitter;
   config.cols = next.cols;
   config.rows = next.rows;
+  config.waveAmp = next.waveAmp;
+  config.alphaBase = next.alphaBase;
+  config.alphaGain = next.alphaGain;
+  config.warpStrength = next.warpStrength;
+  config.warpFrequency = next.warpFrequency;
+  config.style = next.style;
+  config.seed = next.seed;
   palette = next.palette;
   glyphs = next.glyphs;
   noise = new Perlin2D(next.seed);
@@ -428,6 +602,7 @@ function setConfig(next: Config, name: string) {
   rebuildBandCache();
   resizeCanvas();
   updateHud();
+  syncWorkerConfig();
 }
 
 function applyPreset(nextIndex: number) {
@@ -449,6 +624,8 @@ function applyPresetByName(name: string) {
 }
 
 applyPresetByName(startPresetName);
+startNoiseWorker();
+syncWorkerConfig();
 window.addEventListener('resize', resizeCanvas);
 requestAnimationFrame(render);
 

@@ -7,6 +7,15 @@ export type Preset = {
   bandCount: number;
   jitter: number;
   seed?: number;
+  style?: 'perlin' | 'ridged' | 'stripe' | 'worley' | 'curl' | 'cyber';
+  secondaryScale?: number;
+  driftWaveAmp?: number;
+  driftWaveFreq?: number;
+  waveAmp?: number;
+  alphaBase?: number;
+  alphaGain?: number;
+  warpStrength?: number;
+  warpFrequency?: number;
 };
 
 export const presets: Preset[] = [
@@ -208,7 +217,7 @@ export const presets: Preset[] = [
       [120, 0, 0],      // maroon shadow
       [255, 120, 120]   // light red highlight
     ],
-    bandCount: 10,
+    bandCount: 1000,
     scale: 0.038,
     drift: 0.30,
     jitter: 0.40,
@@ -249,5 +258,192 @@ export const presets: Preset[] = [
   drift: 0.38,         // strong outward force
   jitter: 0.48,        // chaotic explosive edges
   seed: 8888
+  },
+  {
+    name: 'PETSCII_Grid',
+    glyphs: ['░', '▒', '▓', '█', '╱', '╲', '╳', '┼', '┤', '├', '┴', '┬'],
+    palette: [
+      [8, 10, 16],     // deep navy
+      [24, 28, 40],    // console blue
+      [54, 90, 140],   // mid blue
+      [96, 140, 200],  // sky blue
+      [160, 205, 255], // pale cyan
+      [230, 240, 255], // highlight
+      [255, 255, 255]  // white
+    ],
+    bandCount: 16,
+    scale: 0.033,
+    drift: 0.26,
+    jitter: 0.32,
+    seed: 1982
+  },
+  {
+    name: 'PETSCII_Noir',
+    glyphs: ['·', '░', '▒', '▓', '█', '#', '╱', '╲', '╳', '◆', '◈', '✣'],
+    palette: [
+      [5, 5, 5],        // deep black
+      [28, 28, 32],     // charcoal
+      [70, 70, 78],     // mid gray
+      [130, 130, 135],  // slate
+      [210, 210, 210],  // soft light
+      [255, 180, 90],   // warm tungsten
+      [255, 240, 200]   // warm highlight
+    ],
+    bandCount: 14,
+    scale: 0.036,
+    drift: 0.18,
+    jitter: 0.22,
+    seed: 1977
+  },
+  {
+    name: 'CP437_Rogue',
+    glyphs: ['.', ':', '+', '=', '*', '%', '#', '@', '░', '▒', '▓', '█'],
+    palette: [
+      [6, 8, 6],        // dark terminal
+      [16, 40, 12],     // deep green
+      [24, 80, 32],     // matrix mid
+      [80, 180, 90],    // vivid green
+      [160, 240, 170],  // pale green
+      [255, 255, 200],  // parchment
+      [255, 255, 255]   // bright white
+    ],
+    bandCount: 12,
+    scale: 0.04,
+    drift: 0.20,
+    jitter: 0.28,
+    seed: 1337
+  },
+  {
+    name: 'Accel_Industrial',
+    glyphs: ['▞', '▚', '▜', '▛', '╳', '╬', '▦', '▧', '▨', '☢', '☣', '⚙'],
+    palette: [
+      [4, 6, 8],      // near-black steel
+      [18, 22, 28],   // deep gunmetal
+      [38, 44, 52],   // mid gunmetal
+      [120, 140, 150],// anodized metal
+      [255, 180, 40], // hazard amber
+      [255, 120, 30], // hot warning orange
+      [220, 240, 255] // cold LED blue-white
+    ],
+    bandCount: 14,
+    scale: 0.032,
+    drift: 0.24,
+    driftWaveAmp: 0.18,   // slow thrust pulsing
+    driftWaveFreq: 0.5,
+    jitter: 0.34,
+    waveAmp: 0.11,        // pronounced bob
+    alphaBase: 0.64,      // darker base
+    alphaGain: 0.32,      // brighter highlights
+    warpStrength: 0.015,  // light radial twist
+    warpFrequency: 0.22,
+    seed: 4242
+  },
+  {
+    name: 'Curl_Turbine',
+    glyphs: ['·', '∙', '•', '◦', '○', '◍', '◎', '◉', '⊚', '⊛', '✦'],
+    palette: [
+      [4, 6, 10],    // dark chassis
+      [24, 28, 36],  // gunmetal
+      [48, 56, 70],  // machinery shadow
+      [120, 200, 255], // turbine blue
+      [200, 240, 255], // highlight blue
+      [255, 160, 60],  // hazard amber
+      [255, 240, 200]  // warm glint
+    ],
+    bandCount: 12,
+    scale: 0.03,
+    secondaryScale: 0.05,
+    drift: 0.28,
+    driftWaveAmp: 0.16,
+    driftWaveFreq: 0.7,
+    jitter: 0.26,
+    waveAmp: 0.09,
+    alphaBase: 0.68,
+    alphaGain: 0.30,
+    warpStrength: 0.012,
+    warpFrequency: 0.18,
+    style: 'curl',
+    seed: 5521
+  },
+  {
+    name: 'Worley_Forge',
+    glyphs: ['▖', '▘', '▝', '▗', '▞', '▚', '▛', '▜', '▙', '▟', '█'],
+    palette: [
+      [6, 4, 4],     // dark iron
+      [20, 12, 8],   // ember shadow
+      [80, 40, 20],  // heated metal
+      [160, 80, 40], // forge orange
+      [255, 120, 40],// molten edge
+      [255, 200, 140],// hot highlight
+      [255, 240, 220]// white hot
+    ],
+    bandCount: 16,
+    scale: 0.028,
+    secondaryScale: 0.12,
+    drift: 0.18,
+    driftWaveAmp: 0.08,
+    driftWaveFreq: 0.5,
+    jitter: 0.22,
+    waveAmp: 0.06,
+    alphaBase: 0.62,
+    alphaGain: 0.35,
+    warpStrength: 0.006,
+    warpFrequency: 0.3,
+    style: 'worley',
+    seed: 777
+  },
+  {
+    name: 'Stripe_Radar',
+    glyphs: ['.', ':', '-', '_', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'],
+    palette: [
+      [0, 4, 8],      // night
+      [12, 18, 26],   // radar bezel
+      [32, 52, 80],   // deep blue
+      [0, 200, 120],  // radar green
+      [120, 255, 200],// glow green
+      [255, 255, 255],// highlight
+      [255, 120, 80]  // alert
+    ],
+    bandCount: 18,
+    scale: 0.022,
+    secondaryScale: 0.04,
+    drift: 0.34,
+    driftWaveAmp: 0.12,
+    driftWaveFreq: 0.9,
+    jitter: 0.18,
+    waveAmp: 0.04,
+    alphaBase: 0.58,
+    alphaGain: 0.36,
+    warpStrength: 0,
+    warpFrequency: 0.25,
+    style: 'stripe',
+    seed: 616
+  },
+  {
+    name: 'Cyber_Shard',
+    glyphs: ['╱', '╲', '◢', '◣', '◤', '◥', '╳', '┼', '▚', '▞', '✦', '✧'],
+    palette: [
+      [2, 2, 4],      // deep void
+      [12, 10, 24],   // midnight purple
+      [30, 20, 60],   // core purple
+      [0, 220, 255],  // neon cyan
+      [120, 0, 255],  // neon violet
+      [255, 80, 180], // magenta accent
+      [240, 240, 255] // icy white
+    ],
+    bandCount: 15,
+    scale: 0.026,
+    secondaryScale: 0.06,
+    drift: 0.30,
+    driftWaveAmp: 0.22,
+    driftWaveFreq: 1.1,
+    jitter: 0.3,
+    waveAmp: 0.1,
+    alphaBase: 0.6,
+    alphaGain: 0.34,
+    warpStrength: 0.01,
+    warpFrequency: 0.24,
+    style: 'cyber',
+    seed: 9090
   }
 ];
