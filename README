@@ -9,5 +9,7 @@ Setup
 - `npm run build` for a production build, `npm run preview` to serve it locally.
 
 Tuning
-- All the field parameters live in `src/main.ts` (`bandCount`, `scale`, `drift`, glyph set, palette).
+- Set `startPresetName` in `src/main.ts` to any preset name from `src/presets.ts` or to `"custom"` and edit `customConfig` inline.
+- Live stats/preset name show in the HUD; press `p` while running to cycle presets.
+- Core field params live in `src/main.ts` (`bandCount`, `scale`, `drift`, glyph set, palette).
 - Canvas sizing is square and responsive; tweak `config.cols`/`rows` for denser or more open layouts.

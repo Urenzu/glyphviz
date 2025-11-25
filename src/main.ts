@@ -1,35 +1,51 @@
 import './style.css';
+import { presets, type Preset } from './presets';
 
 type PaletteColor = [number, number, number];
 
-// Glyph sets to try:
+type Config = {
+  cols: number;
+  rows: number;
+  bandCount: number;
+  scale: number;
+  drift: number;
+  jitter: number;
+  glyphs: string[];
+  palette: PaletteColor[];
+  seed: number;
+};
+
+// Glyph sets to try (uncomment or copy into customConfig as desired):
 // const glyphs = ['.', ':', '-', '+', '=', '*', '%', '#', '@']; // clean ASCII
 // const glyphs = ['`', '.', ',', ':', ';', '!', '*', 'o', 'O', '0', '#', '@']; // hazy CRT
 // const glyphs = ['·', '˙', '∷', '─', '┼', '╬', '▓', '█']; // blocky grid
 // const glyphs = ['.', '⌁', '⌇', '✶', '✸', '✺', '✽', '✦', '✧']; // sparkly
 // const glyphs = ['.', '∴', '∆', '◊', '◇', '◆', '▢', '▣', '▦']; // geometric
+// const glyphs = ['.', '+', 'x', '✚', '✖', '◉', '◎', '⊕', '⊗']; // targeting/radar
+// const glyphs = ['.', ':', '-', '_', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']; // bars
+// const glyphs = ['.', ':', '|', '/', '\\\\', '+', '*', '#', '@']; // utilitarian grid
+// const glyphs = ['.', '>', '»', '›', '»', '▷', '▶', '▸', '▹']; // directional
 
-const glyphs = ['.', ':', '-', '+', '=', '*', '%', '#', '@'];
+const startPresetName = 'JP_RisingSun'; // set to 'custom' or any preset name from presets.ts
 
-// [R, G, B]
-const palette: PaletteColor[] = [
-  [255, 130, 20],   // brighter Traxus orange (strong, punchy)
-  [255, 170, 80],   // light/soft orange accent
-  [22, 23, 26],     // near-black industrial gray
-  [45, 47, 53],     // dark steel gray
-  [90, 92, 98],     // mid gray
-  [165, 167, 172],  // light gray
-  [255, 255, 255]   // white (highlight / contrast)
-];
-
-
-const config = {
+const customConfig: Config = {
   cols: 54,
   rows: 54,
+  glyphs: ['.', '+', 'x', '✚', '✖', '◉', '◎', '⊕', '⊗'], // targeting/radar vibe
+  palette: [
+    [18, 18, 18], // near-black
+    [46, 50, 55], // dark steel
+    [86, 90, 95], // mid gray
+    [190, 195, 200], // light gray
+    [255, 255, 255], // white
+    [255, 132, 24], // caution amber
+    [255, 170, 80] // warm accent
+  ],
   bandCount: 8,
   scale: 0.045,
   drift: 0.16,
-  jitter: 0.35
+  jitter: 0.32,
+  seed: 707
 };
 
 const canvas = document.querySelector<HTMLCanvasElement>('#glyph-canvas');
@@ -43,7 +59,8 @@ if (!canvas || !ctx || !frame) {
 const hud = {
   bands: document.querySelector<HTMLElement>('[data-band-count]'),
   scale: document.querySelector<HTMLElement>('[data-scale]'),
-  speed: document.querySelector<HTMLElement>('[data-speed]')
+  speed: document.querySelector<HTMLElement>('[data-speed]'),
+  preset: document.querySelector<HTMLElement>('[data-preset]')
 };
 
 const state = {
@@ -112,6 +129,10 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+function clamp01(v: number): number {
+  return Math.max(0, Math.min(1, v));
+}
+
 function mixColors(a: PaletteColor, b: PaletteColor, t: number): PaletteColor {
   return [
     Math.round(lerp(a[0], b[0], t)),
@@ -133,7 +154,31 @@ function withAlpha(rgb: string, alpha: number): string {
   return rgb.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`);
 }
 
-const noise = new Perlin2D(777);
+function buildConfig(preset: Preset): Config {
+  return {
+    cols: 54,
+    rows: 54,
+    glyphs: preset.glyphs,
+    palette: preset.palette,
+    bandCount: preset.bandCount,
+    scale: preset.scale,
+    drift: preset.drift,
+    jitter: preset.jitter,
+    seed: preset.seed ?? 1
+  };
+}
+
+let presetIndex = presets.findIndex((p) => p.name === startPresetName);
+if (presetIndex < 0) presetIndex = 0;
+const initialConfig =
+  startPresetName === 'custom'
+    ? customConfig
+    : buildConfig(presets[presetIndex] ?? presets[0]);
+const config = { ...initialConfig };
+let palette = config.palette;
+let glyphs = config.glyphs;
+let noise = new Perlin2D(config.seed);
+let currentPresetName = startPresetName === 'custom' ? 'custom' : presets[presetIndex]?.name ?? 'custom';
 
 function resizeCanvas() {
   const rect = frame.getBoundingClientRect();
@@ -154,6 +199,7 @@ function updateHud() {
   if (hud.bands) hud.bands.textContent = `${config.bandCount}`;
   if (hud.scale) hud.scale.textContent = config.scale.toFixed(3);
   if (hud.speed) hud.speed.textContent = config.drift.toFixed(2);
+  if (hud.preset) hud.preset.textContent = currentPresetName;
 }
 
 function render(timeMs: number) {
@@ -172,7 +218,7 @@ function render(timeMs: number) {
     for (let x = 0; x < config.cols; x += 1) {
       const nx = x * config.scale + t * config.drift;
       const n = noise.noise(nx, ny);
-      const normalized = Math.max(0, Math.min(1, (n + 1) * 0.5));
+      const normalized = clamp01((n + 1) * 0.5);
       const shaped = Math.pow(normalized, 1.18);
       const band = Math.min(config.bandCount - 1, Math.floor(shaped * config.bandCount));
       const glyph = glyphs[band % glyphs.length];
@@ -193,7 +239,49 @@ function render(timeMs: number) {
   requestAnimationFrame(render);
 }
 
+function setConfig(next: Config, name: string) {
+  config.bandCount = next.bandCount;
+  config.scale = next.scale;
+  config.drift = next.drift;
+  config.jitter = next.jitter;
+  config.cols = next.cols;
+  config.rows = next.rows;
+  palette = next.palette;
+  glyphs = next.glyphs;
+  noise = new Perlin2D(next.seed);
+  currentPresetName = name;
+  updateHud();
+}
+
+function applyPreset(nextIndex: number) {
+  presetIndex = (nextIndex + presets.length) % presets.length;
+  const preset = presets[presetIndex];
+  setConfig(buildConfig(preset), preset.name);
+}
+
+function applyPresetByName(name: string) {
+  if (name === 'custom') {
+    setConfig(customConfig, 'custom');
+    return;
+  }
+  const idx = presets.findIndex((p) => p.name === name);
+  if (idx >= 0) {
+    presetIndex = idx;
+    setConfig(buildConfig(presets[idx]), presets[idx].name);
+  }
+}
+
+applyPresetByName(startPresetName);
+
 resizeCanvas();
 updateHud();
 window.addEventListener('resize', resizeCanvas);
 requestAnimationFrame(render);
+
+function handleKey(e: KeyboardEvent) {
+  if (e.key.toLowerCase() === 'p') {
+    applyPreset(presetIndex + 1);
+  }
+}
+
+window.addEventListener('keydown', handleKey);
