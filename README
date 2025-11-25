@@ -1,0 +1,13 @@
+glyphviz
+--------
+
+Prototype for a square canvas that animates procedural noise, quantizes it into bands, and maps those into a glyph grid.
+
+Setup
+- `npm install`
+- `npm run dev` to start the Vite dev server (open the printed URL).
+- `npm run build` for a production build, `npm run preview` to serve it locally.
+
+Tuning
+- All the field parameters live in `src/main.ts` (`bandCount`, `scale`, `drift`, glyph set, palette).
+- Canvas sizing is square and responsive; tweak `config.cols`/`rows` for denser or more open layouts.

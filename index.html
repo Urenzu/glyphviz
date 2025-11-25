@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>glyphviz - noise -> glyph field</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>*</text></svg>">
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <div class="canvas-frame">
+        <canvas id="glyph-canvas" aria-label="procedural glyph field"></canvas>
+        <div class="hud">
+          <span class="pill">bands <strong data-band-count></strong></span>
+          <span class="pill">scale <strong data-scale></strong></span>
+          <span class="pill">drift <strong data-speed></strong></span>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

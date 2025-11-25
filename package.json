@@ -1,0 +1,24 @@
+{
+  "name": "glyphviz",
+  "version": "0.1.0",
+  "description": "Animated procedural noise -> quantized bands -> glyph field visualizer.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "tsc --noEmit"
+  },
+  "keywords": [
+    "noise",
+    "glyph",
+    "visual"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
+  }
+}
