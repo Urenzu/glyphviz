@@ -7,8 +7,27 @@ export type Preset = {
   bandCount: number;
   jitter: number;
   seed?: number;
-  style?: 'perlin' | 'ridged' | 'stripe' | 'worley' | 'curl' | 'cyber';
+  style?:
+    | 'perlin'
+    | 'ridged'
+    | 'stripe'
+    | 'worley'
+    | 'curl'
+    | 'cyber'
+    | 'voronoi'
+    | 'brick'
+    | 'step'
+    | 'glitch'
+    | 'height'
+    | 'perspective'
+    | 'flight'
+    | 'tunnel';
   secondaryScale?: number;
+  quantizeSteps?: number;
+  snapStrength?: number;
+  anisotropy?: number;
+  spikeChance?: number;
+  spikeIntensity?: number;
   driftWaveAmp?: number;
   driftWaveFreq?: number;
   waveAmp?: number;
@@ -417,6 +436,174 @@ export const presets: Preset[] = [
     warpStrength: 0,
     warpFrequency: 0.25,
     style: 'stripe',
+    quantizeSteps: 0,
+    seed: 616
+  },
+  {
+    name: 'Voronoi_Web',
+    glyphs: ['╱', '╲', '╳', '┼', '▞', '▚', '▛', '▜', '✦', '✧', '◈', '⋇'],
+    palette: [
+      [2, 2, 4],     // deep void
+      [18, 18, 26],  // cold charcoal
+      [60, 60, 80],  // steel blue
+      [0, 180, 255], // neon cyan
+      [140, 220, 255],// pale cyan
+      [255, 140, 60], // hazard orange
+      [255, 255, 255] // white
+    ],
+    bandCount: 15,
+    scale: 0.026,
+    secondaryScale: 0.08,
+    drift: 0.22,
+    driftWaveAmp: 0.1,
+    driftWaveFreq: 0.8,
+    jitter: 0.28,
+    waveAmp: 0.07,
+    alphaBase: 0.6,
+    alphaGain: 0.34,
+    warpStrength: 0.008,
+    warpFrequency: 0.2,
+    style: 'voronoi',
+    seed: 424242
+  },
+  {
+    name: 'Brick_Scan',
+    glyphs: ['█', '▓', '▒', '░', '─', '═', '▌', '▐', '╳', '│', '┼', '╫'],
+    palette: [
+      [4, 6, 6],     // dark stone
+      [14, 18, 18],  // smoke
+      [42, 50, 52],  // slate
+      [120, 140, 140],// patina
+      [200, 210, 210],// light wash
+      [255, 220, 80], // signal amber
+      [255, 255, 255] // specular
+    ],
+    bandCount: 100,
+    scale: 0.080,
+    secondaryScale: 0.10,
+    snapStrength: 0.7,
+    drift: 0.7,
+    driftWaveAmp: 0.50,
+    driftWaveFreq: 1,
+    jitter: 0.16,
+    waveAmp: 0.20,
+    alphaBase: 0.65,
+    alphaGain: 0.3,
+    warpStrength: 0.0,
+    warpFrequency: 0.25,
+    style: 'brick',
+    quantizeSteps: 50,
+    seed: 1717
+  },
+  {
+    name: 'Glitch_Runner',
+    glyphs: ['╱', '╲', '◢', '◣', '◤', '◥', '╳', '┼', '▚', '▞', '✦', '✧'],
+    palette: [
+      [0, 0, 0],       // void
+      [24, 12, 48],    // dark violet
+      [40, 12, 80],    // purple core
+      [0, 240, 200],   // neon teal
+      [255, 0, 140],   // neon magenta
+      [255, 220, 120], // glitch gold
+      [255, 255, 255]  // white flash
+    ],
+    bandCount: 16,
+    scale: 0.024,
+    secondaryScale: 0.06,
+    drift: 0.38,
+    driftWaveAmp: 0.22,
+    driftWaveFreq: 1.4,
+    jitter: 0.36,
+    waveAmp: 0.08,
+    alphaBase: 0.58,
+    alphaGain: 0.36,
+    warpStrength: 0.012,
+    warpFrequency: 0.26,
+    style: 'glitch',
+    quantizeSteps: 5,
+    spikeChance: 0.08,
+    spikeIntensity: 0.6,
+    seed: 31337
+  },
+  {
+    name: 'Curl_Turbine',
+    glyphs: ['·', '∙', '•', '◦', '○', '◍', '◎', '◉', '⊚', '⊛', '✦'],
+    palette: [
+      [4, 6, 10],    // dark chassis
+      [24, 28, 36],  // gunmetal
+      [48, 56, 70],  // machinery shadow
+      [120, 200, 255], // turbine blue
+      [200, 240, 255], // highlight blue
+      [255, 160, 60],  // hazard amber
+      [255, 240, 200]  // warm glint
+    ],
+    bandCount: 12,
+    scale: 0.03,
+    secondaryScale: 0.05,
+    drift: 0.28,
+    driftWaveAmp: 0.16,
+    driftWaveFreq: 0.7,
+    jitter: 0.26,
+    waveAmp: 0.09,
+    alphaBase: 0.68,
+    alphaGain: 0.30,
+    warpStrength: 0.012,
+    warpFrequency: 0.18,
+    style: 'curl',
+    seed: 5521
+  },
+  {
+    name: 'Worley_Forge',
+    glyphs: ['▖', '▘', '▝', '▗', '▞', '▚', '▛', '▜', '▙', '▟', '█'],
+    palette: [
+      [6, 4, 4],     // dark iron
+      [20, 12, 8],   // ember shadow
+      [80, 40, 20],  // heated metal
+      [160, 80, 40], // forge orange
+      [255, 120, 40],// molten edge
+      [255, 200, 140],// hot highlight
+      [255, 240, 220]// white hot
+    ],
+    bandCount: 16,
+    scale: 0.028,
+    secondaryScale: 0.12,
+    drift: 0.18,
+    driftWaveAmp: 0.08,
+    driftWaveFreq: 0.5,
+    jitter: 0.22,
+    waveAmp: 0.06,
+    alphaBase: 0.62,
+    alphaGain: 0.35,
+    warpStrength: 0.006,
+    warpFrequency: 0.3,
+    style: 'worley',
+    seed: 777
+  },
+  {
+    name: 'Stripe_Radar',
+    glyphs: ['.', ':', '-', '_', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'],
+    palette: [
+      [0, 4, 8],      // night
+      [12, 18, 26],   // radar bezel
+      [32, 52, 80],   // deep blue
+      [0, 200, 120],  // radar green
+      [120, 255, 200],// glow green
+      [255, 255, 255],// highlight
+      [255, 120, 80]  // alert
+    ],
+    bandCount: 18,
+    scale: 0.022,
+    secondaryScale: 0.04,
+    drift: 0.34,
+    driftWaveAmp: 0.12,
+    driftWaveFreq: 0.9,
+    jitter: 0.18,
+    waveAmp: 0.04,
+    alphaBase: 0.58,
+    alphaGain: 0.36,
+    warpStrength: 0,
+    warpFrequency: 0.25,
+    style: 'stripe',
     seed: 616
   },
   {
@@ -445,5 +632,91 @@ export const presets: Preset[] = [
     warpFrequency: 0.24,
     style: 'cyber',
     seed: 9090
+  },
+  {
+    name: 'Exile',
+    glyphs: ['日', '本', '丶', '々', '※', '＊', '✦', '✧', '╋'],
+    palette: [
+      [90, 0, 255],    // vivid corporate violet
+      [140, 0, 255],   // bright electric purple
+      [200, 80, 255],  // neon lavender glow
+      [255, 120, 255], // hyper bright magenta-violet
+      [60, 0, 140],    // deep brand violet
+      [255, 255, 255], // crisp white for contrast
+    ],
+    bandCount: 15,
+    scale: 0.026,
+    secondaryScale: 0.06,
+    drift: 0.30,
+    driftWaveAmp: 0.22,
+    driftWaveFreq: 1.1,
+    jitter: 0.6,
+    waveAmp: 0.1,
+    alphaBase: 0.6,
+    alphaGain: 0.34,
+    warpStrength: 0.20,
+    warpFrequency: 0.24,
+    style: 'cyber',
+    seed: 9090
+  },
+  {
+    name: 'Height_Horizon',
+    glyphs: ['.', '∙', '•', '○', '◍', '◎', '◉', '⊕', '⊗', '▣', '▦', '█'],
+    palette: [
+      [4, 4, 6],      // night base
+      [14, 16, 20],   // dark blue
+      [40, 46, 60],   // mid steel
+      [90, 120, 170], // distant haze
+      [160, 200, 240],// sky light
+      [255, 200, 120],// sun edge
+      [255, 255, 240] // highlight
+    ],
+    bandCount: 18,
+    scale: 0.028,
+    secondaryScale: 0.06,
+    drift: 0.22,
+    driftWaveAmp: 0.08,
+    driftWaveFreq: 0.6,
+    jitter: 0.18,
+    waveAmp: 0.05,
+    alphaBase: 0.64,
+    alphaGain: 0.34,
+    warpStrength: 0.006,
+    warpFrequency: 0.14,
+    style: 'height',
+    spikeChance: 0.02,
+    spikeIntensity: 0.25,
+    seed: 5151
+  },
+  {
+    name: 'Perspective_Sprawl',
+    glyphs: ['▗', '▖', '▝', '▘', '▚', '▞', '▛', '▜', '▙', '▟', '█', '▧', '▨'],
+    palette: [
+      [2, 2, 6],       // deep void
+      [16, 16, 22],    // asphalt
+      [40, 48, 60],    // concrete
+      [90, 100, 120],  // steel
+      [180, 200, 220], // haze
+      [0, 210, 255],   // neon cyan
+      [255, 120, 60]   // signal orange
+    ],
+    bandCount: 20,
+    scale: 0.024,
+    secondaryScale: 0.05,
+    drift: 0.3,
+    driftWaveAmp: 0.12,
+    driftWaveFreq: 0.9,
+    jitter: 0.24,
+    waveAmp: 0.06,
+    alphaBase: 0.6,
+    alphaGain: 0.36,
+    warpStrength: 0.008,
+    warpFrequency: 0.18,
+    style: 'flight',
+    snapStrength: 0,
+    quantizeSteps: 0,
+    spikeChance: 0.04,
+    spikeIntensity: 0.3,
+    seed: 8484
   }
 ];

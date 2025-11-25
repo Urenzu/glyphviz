@@ -6,11 +6,30 @@ type WorkerConfig = {
   rows: number;
   scale: number;
   secondaryScale: number;
+  quantizeSteps: number;
+  snapStrength: number;
+  anisotropy: number;
+  spikeChance: number;
+  spikeIntensity: number;
   drift: number;
   driftWaveAmp: number;
   driftWaveFreq: number;
   bandCount: number;
-  style: 'perlin' | 'ridged' | 'stripe' | 'worley' | 'curl' | 'cyber';
+  style:
+    | 'perlin'
+    | 'ridged'
+    | 'stripe'
+    | 'worley'
+    | 'curl'
+    | 'cyber'
+    | 'voronoi'
+    | 'brick'
+    | 'step'
+    | 'glitch'
+    | 'height'
+    | 'perspective'
+    | 'flight'
+    | 'tunnel';
   seed: number;
 };
 
@@ -156,7 +175,22 @@ function applyConfig(next: WorkerConfig) {
 
 function computeFrame(timeMs: number) {
   if (!config || !noise) return;
-  const { cols, rows, drift, bandCount, driftWaveAmp, driftWaveFreq, secondaryScale, style, seed } = config;
+  const {
+    cols,
+    rows,
+    drift,
+    bandCount,
+    driftWaveAmp,
+    driftWaveFreq,
+    secondaryScale,
+    style,
+    seed,
+    quantizeSteps,
+    snapStrength,
+    anisotropy,
+    spikeChance,
+    spikeIntensity
+  } = config;
   const bandMax = bandCount - 1;
   const t = timeMs * 0.001;
   const driftWave = 1 + driftWaveAmp * Math.sin(t * driftWaveFreq);
@@ -165,11 +199,52 @@ function computeFrame(timeMs: number) {
   const curlStrength = 1.2;
   let idx = 0;
   for (let y = 0; y < rows; y += 1) {
-    const ny = noiseBaseY[y] + t * driftNow * 0.35;
+    const nyBase = noiseBaseY[y] + t * driftNow * 0.35;
     for (let x = 0; x < cols; x += 1) {
-      const nx = noiseBaseX[x] + t * driftNow;
+      const nxBase = noiseBaseX[x] + t * driftNow;
+      const nx = nxBase * anisotropy;
+      const ny = nyBase / Math.max(0.0001, anisotropy);
       let n: number;
       switch (style) {
+        case 'height': {
+          const nBase = noise.noise(nx, ny);
+          const gx = noise.noise(nx + eps, ny) - noise.noise(nx - eps, ny);
+          const gy = noise.noise(nx, ny + eps) - noise.noise(nx, ny - eps);
+          const lightX = 0.6;
+          const lightY = -0.8;
+          const shade = (gx * lightX + gy * lightY) * 0.7;
+          const combined = nBase * 0.7 + shade * 0.6;
+          n = Math.max(-1, Math.min(1, combined));
+          break;
+        }
+        case 'perspective': {
+          const h = noise.noise(nx * secondaryScale, ny * secondaryScale);
+          const factor = 1 / (1 + Math.max(-0.9, Math.min(0.9, h * 0.6)));
+          const n1 = noise.noise(nx * factor, ny * factor);
+          const n2 = noise.noise(nx * factor * 1.8, ny * factor * 1.8) * 0.35;
+          n = (n1 * 0.75 + n2 * 0.25);
+          break;
+        }
+        case 'flight': {
+          const z = y / rows;
+          const perspective = 1 / (1 + z * 1.6);
+          const sx = nx * perspective;
+          const sy = ny * perspective + t * driftNow * 0.5;
+          const h = noise.noise(sx, sy);
+          n = h * (1 + (1 - z) * 0.5);
+          break;
+        }
+        case 'tunnel': {
+          const cx = (x / cols) - 0.5;
+          const cy = (y / rows) - 0.5;
+          const angle = Math.atan2(cy, cx);
+          const radius = Math.hypot(cx, cy);
+          const twist = noise.noise(angle * 1.2 + t * 0.3, radius * 0.8 + t * 0.5);
+          const depth = 1 / Math.max(0.15, radius + 0.1 + twist * 0.05);
+          const stripe = Math.sin((angle + twist * 0.4) * 8 + t * 2);
+          n = (stripe * 0.35 + depth * 0.65);
+          break;
+        }
         case 'ridged': {
           const n1 = noise.noise(nx, ny);
           const n2 = noise.noise(nx * secondaryScale, ny * secondaryScale);
@@ -186,6 +261,27 @@ function computeFrame(timeMs: number) {
           const wy = ny * secondaryScale;
           const d = worley(wx, wy, seed);
           n = 1 - Math.min(1, d * 1.4);
+          break;
+        }
+        case 'voronoi': {
+          const wx = nx * secondaryScale;
+          const wy = ny * secondaryScale;
+          const d1 = worley(wx, wy, seed);
+          const d2 = worley(wx + 0.73, wy - 0.41, seed + 11);
+          const edge = 1 - Math.abs(d1 - d2) * 2;
+          n = Math.max(-1, Math.min(1, edge));
+          break;
+        }
+        case 'brick': {
+          const snap = snapStrength > 0 ? snapStrength : 0.5;
+          const gx = Math.floor(nx / snap);
+          const gy = Math.floor(ny / snap);
+          const offset = (gy & 1) * 0.5 * snap;
+          n = noise.noise(gx * snap + offset, gy * snap);
+          break;
+        }
+        case 'step': {
+          n = noise.noise(nx, ny);
           break;
         }
         case 'curl': {
@@ -205,6 +301,12 @@ function computeFrame(timeMs: number) {
           n = stripe + base + ridged * 0.6;
           break;
         }
+        case 'glitch': {
+          const base = noise.noise(nx * 1.6, ny * 0.9 + Math.sin(t * 5) * 0.5);
+          const stripe = Math.sin(nx * 4.2 + t * 6.3) * 0.5;
+          n = base * 0.5 + stripe * 0.5;
+          break;
+        }
         case 'perlin':
         default: {
           n = noise.noise(nx, ny);
@@ -213,6 +315,15 @@ function computeFrame(timeMs: number) {
       let normalized = (n + 1) * 0.5;
       if (normalized < 0) normalized = 0;
       else if (normalized > 1) normalized = 1;
+      if (style === 'step' && quantizeSteps > 0) {
+        normalized = Math.round(normalized * quantizeSteps) / quantizeSteps;
+      }
+      if (spikeChance > 0) {
+        const spikeHash = hash2(x + Math.floor(t * 30), y + seed * 3, seed);
+        if (spikeHash < spikeChance) {
+          normalized = Math.min(1, normalized + spikeIntensity);
+        }
+      }
       const shapedVal = shapeValue(normalized);
       let band = (shapedVal * bandCount) | 0;
       if (band > bandMax) band = bandMax;
