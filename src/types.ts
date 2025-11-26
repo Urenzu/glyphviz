@@ -20,6 +20,18 @@ export type Config = {
   alphaGain: number;
   warpStrength: number;
   warpFrequency: number;
+  trailStrength: number;
+  dualLayerStrength: number;
+  axisBlend: number;
+  dynamicGlyphMix: number;
+  chromaticAberration: number;
+  radialBloom: number;
+  blurAmount: number;
+  sharpenAmount: number;
+  colorTwist: number;
+  embossStrength: number;
+  rippleDistortion: number;
+  layerBlend: number;
   style:
     | 'perlin'
     | 'ridged'
@@ -34,7 +46,13 @@ export type Config = {
     | 'height'
     | 'perspective'
     | 'flight'
-    | 'tunnel';
+    | 'tunnel'
+    | 'kaleido'
+    | 'flow'
+    | 'orbital'
+    | 'cellular'
+    | 'hearts'
+    | 'anomaly';
   glyphs: string[];
   palette: PaletteColor[];
   seed: number;

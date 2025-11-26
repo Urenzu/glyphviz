@@ -21,7 +21,13 @@ export type Preset = {
     | 'height'
     | 'perspective'
     | 'flight'
-    | 'tunnel';
+    | 'tunnel'
+    | 'kaleido'
+    | 'flow'
+    | 'orbital'
+    | 'cellular'
+    | 'hearts'
+    | 'anomaly';
   secondaryScale?: number;
   quantizeSteps?: number;
   snapStrength?: number;
@@ -35,6 +41,18 @@ export type Preset = {
   alphaGain?: number;
   warpStrength?: number;
   warpFrequency?: number;
+  trailStrength?: number;
+  dualLayerStrength?: number;
+  axisBlend?: number;
+  dynamicGlyphMix?: number;
+  chromaticAberration?: number;
+  radialBloom?: number;
+  blurAmount?: number;
+  sharpenAmount?: number;
+  colorTwist?: number;
+  embossStrength?: number;
+  rippleDistortion?: number;
+  layerBlend?: number;
 };
 
 export const presets: Preset[] = [
@@ -978,6 +996,39 @@ export const presets: Preset[] = [
     spikeChance: 0.04,
     spikeIntensity: 0.4,
     seed: 2424
+  },
+  {
+    name: 'Love3',
+    glyphs: ['♥', '♡', '❤', '❥', '✺', '✿', 'A', 'l', 'l', 'i', 's', 'o', 'n'],
+    palette: [
+      [12, 2, 14],     // midnight rose
+      [60, 6, 48],     // deep magenta
+      [140, 20, 110],  // lush pink
+      [210, 60, 160],  // neon orchid
+      [255, 110, 190], // candy highlight
+      [255, 170, 210], // blush glow
+      [255, 235, 245]  // alabaster shimmer
+    ],
+    bandCount: 34,
+    scale: 0.028,
+    secondaryScale: 0.07,
+    drift: 0.34,
+    driftWaveAmp: 0.22,
+    driftWaveFreq: 1.25,
+    jitter: 0.24,
+    waveAmp: 0.12,
+    alphaBase: 0.66,
+    alphaGain: 0.38,
+    warpStrength: 0.015,
+    warpFrequency: 0.2,
+    trailStrength: 0.22,
+    dualLayerStrength: 0.6,
+    axisBlend: 0.35,
+    dynamicGlyphMix: 0.4,
+    style: 'hearts',
+    spikeChance: 0.03,
+    spikeIntensity: 0.45,
+    seed: 2611
   },
   {
     name: 'Singularity_Rift',

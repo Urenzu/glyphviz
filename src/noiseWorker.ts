@@ -29,7 +29,13 @@ type WorkerConfig = {
     | 'height'
     | 'perspective'
     | 'flight'
-    | 'tunnel';
+    | 'tunnel'
+    | 'kaleido'
+    | 'flow'
+    | 'orbital'
+    | 'cellular'
+    | 'hearts'
+    | 'anomaly';
   seed: number;
 };
 
@@ -119,6 +125,25 @@ function shapeValue(v: number): number {
   return powLut[idx];
 }
 
+const TAU = Math.PI * 2;
+const INV_TAU = 1 / TAU;
+const SIN_LUT_SIZE = 8192;
+const SIN_LUT_MASK = SIN_LUT_SIZE - 1;
+const SIN_LUT = new Float32Array(SIN_LUT_SIZE);
+for (let i = 0; i < SIN_LUT_SIZE; i += 1) {
+  SIN_LUT[i] = Math.sin((i / SIN_LUT_SIZE) * TAU);
+}
+
+function fastSin(angle: number): number {
+  let normalized = angle * INV_TAU;
+  normalized -= Math.floor(normalized);
+  return SIN_LUT[(normalized * SIN_LUT_SIZE) & SIN_LUT_MASK];
+}
+
+function fastCos(angle: number): number {
+  return fastSin(angle + Math.PI * 0.5);
+}
+
 function hash2(x: number, y: number, seed: number): number {
   let h = x * 374761393 + y * 668265263 + seed * 362437;
   h = (h ^ (h >> 13)) * 1274126177;
@@ -193,7 +218,7 @@ function computeFrame(timeMs: number) {
   } = config;
   const bandMax = bandCount - 1;
   const t = timeMs * 0.001;
-  const driftWave = 1 + driftWaveAmp * Math.sin(t * driftWaveFreq);
+  const driftWave = 1 + driftWaveAmp * fastSin(t * driftWaveFreq);
   const driftNow = drift * driftWave;
   const eps = 0.35;
   const curlStrength = 1.2;
@@ -234,30 +259,30 @@ function computeFrame(timeMs: number) {
           n = h * (1 + (1 - z) * 0.5);
           break;
         }
-        case 'tunnel': {
-          const cx = x / cols - 0.5 + Math.sin(t * 0.35) * 0.05;
-          const cy = y / rows - 0.5 + Math.cos(t * 0.25) * 0.05;
-          const angle = Math.atan2(cy, cx) + t * 0.4;
-          const radius = Math.hypot(cx, cy);
-          const radial = Math.log1p(radius * 6);
-          const twist = noise.noise(angle * 1.6 + t * 0.6, radial * 3 + t * 0.4);
-          const depth = 1 / Math.max(0.12, radial + 0.08 + twist * 0.04);
-          const stripe = Math.sin(angle * 10 + t * 3 + radial * 18 + twist * 2);
-          const jitter = noise.noise(angle * 4 - t * 0.5, radial * 5 + t * 0.7);
-          n = depth * 0.6 + stripe * 0.25 + jitter * 0.15;
-          break;
-        }
-        case 'ridged': {
+          case 'tunnel': {
+            const cx = x / cols - 0.5 + fastSin(t * 0.35) * 0.05;
+            const cy = y / rows - 0.5 + fastCos(t * 0.25) * 0.05;
+            const angle = Math.atan2(cy, cx) + t * 0.4;
+            const radius = Math.hypot(cx, cy);
+            const radial = Math.log1p(radius * 6);
+            const twist = noise.noise(angle * 1.6 + t * 0.6, radial * 3 + t * 0.4);
+            const depth = 1 / Math.max(0.12, radial + 0.08 + twist * 0.04);
+            const stripe = fastSin(angle * 10 + t * 3 + radial * 18 + twist * 2);
+            const jitter = noise.noise(angle * 4 - t * 0.5, radial * 5 + t * 0.7);
+            n = depth * 0.6 + stripe * 0.25 + jitter * 0.15;
+            break;
+          }
+          case 'ridged': {
           const n1 = noise.noise(nx, ny);
           const n2 = noise.noise(nx * secondaryScale, ny * secondaryScale);
           const combined = n1 * 0.7 + n2 * 0.3;
           n = 1 - Math.abs(combined);
           break;
         }
-        case 'stripe': {
-          n = Math.sin(nx * 2.2 + ny * 0.4 + t * driftNow * 2.4);
-          break;
-        }
+          case 'stripe': {
+            n = fastSin(nx * 2.2 + ny * 0.4 + t * driftNow * 2.4);
+            break;
+          }
         case 'worley': {
           const wx = nx * secondaryScale;
           const wy = ny * secondaryScale;
@@ -297,16 +322,102 @@ function computeFrame(timeMs: number) {
           break;
         }
         case 'cyber': {
-          const stripe = Math.sin(nx * 3.2 + t * driftNow * 3) * 0.6;
+          const stripe = fastSin(nx * 3.2 + t * driftNow * 3) * 0.6;
           const base = noise.noise(nx * 1.3, ny * 1.1) * 0.4;
           const ridged = 1 - Math.abs(noise.noise(nx * secondaryScale, ny * secondaryScale));
           n = stripe + base + ridged * 0.6;
           break;
         }
         case 'glitch': {
-          const base = noise.noise(nx * 1.6, ny * 0.9 + Math.sin(t * 5) * 0.5);
-          const stripe = Math.sin(nx * 4.2 + t * 6.3) * 0.5;
+          const base = noise.noise(nx * 1.6, ny * 0.9 + fastSin(t * 5) * 0.5);
+          const stripe = fastSin(nx * 4.2 + t * 6.3) * 0.5;
           n = base * 0.5 + stripe * 0.5;
+          break;
+        }
+        case 'kaleido': {
+          const cxNorm = x / cols - 0.5;
+          const cyNorm = y / rows - 0.5;
+          const radius = Math.hypot(cxNorm, cyNorm);
+          const angle = Math.atan2(cyNorm, cxNorm);
+          const slices = 8;
+          const sliceAngle = (Math.PI * 2) / slices;
+          const normalizedAngle = Math.abs(
+            (((angle % sliceAngle) + sliceAngle) % sliceAngle) - sliceAngle * 0.5
+          );
+          const sampleX = fastCos(normalizedAngle) * radius * 10 + t * 0.3;
+          const sampleY = fastSin(normalizedAngle) * radius * 10 - t * 0.3;
+          const blot = noise.noise(sampleX, sampleY);
+          const ripple = fastSin(radius * 24 - t * 2 + normalizedAngle * 6);
+          n = blot * 0.7 + ripple * 0.3;
+          break;
+        }
+        case 'flow': {
+          let fx = nx;
+          let fy = ny;
+          for (let i = 0; i < 3; i += 1) {
+            const dvx = noise.noise(fx, fy + eps) - noise.noise(fx, fy - eps);
+            const dvy = noise.noise(fx - eps, fy) - noise.noise(fx + eps, fy);
+            fx += dvx * 0.7;
+            fy += dvy * 0.7;
+          }
+          n = noise.noise(fx, fy);
+          break;
+        }
+        case 'orbital': {
+          const cxNorm = x / cols - 0.5;
+          const cyNorm = y / rows - 0.5;
+          const orb1x = fastSin(t * 0.2) * 0.35;
+          const orb1y = fastCos(t * 0.25) * 0.35;
+          const orb2x = fastSin(t * 0.33 + 1.2) * 0.55;
+          const orb2y = fastCos(t * 0.29 + 0.8) * 0.55;
+          const d1 = Math.hypot(cxNorm - orb1x, cyNorm - orb1y);
+          const d2 = Math.hypot(cxNorm - orb2x, cyNorm - orb2y);
+          const caustic = Math.exp(-d1 * 8) + Math.exp(-d2 * 8);
+          const shimmer = fastSin(d1 * 40 - t * 2) + fastSin(d2 * 36 + t * 1.6);
+          const carrier = noise.noise(nx * 0.6 + t * 0.08, ny * 0.6 - t * 0.08);
+          n = caustic * 0.5 + shimmer * 0.25 + carrier * 0.25;
+          break;
+        }
+        case 'cellular': {
+          const wx = nx * secondaryScale;
+          const wy = ny * secondaryScale;
+          const d1 = worley(wx, wy, seed);
+          const d2 = worley(wx + 0.31, wy - 0.17, seed + 7);
+          const membrane = 1 - Math.min(1, Math.abs(d1 - d2) * 4);
+          const pocket = Math.min(d1, d2);
+          const nucleus = Math.exp(-pocket * 4);
+          n = membrane * 0.7 + nucleus * 0.3;
+          break;
+        }
+        case 'hearts': {
+          const tiles = 6;
+          const localX = ((x / cols) * tiles) % 1;
+          const localY = ((y / rows) * tiles) % 1;
+          const hx = (localX - 0.5) * 2;
+          const hy = (localY - 0.5) * -2;
+          const shape =
+            Math.pow(hx * hx + hy * hy - 1, 3) - hx * hx * hy * hy * hy;
+          const beat = fastSin(t * 3 + (hx + hy) * 6) * 0.2;
+          const fill = Math.tanh(-shape * 3);
+          const shimmer = noise.noise(nx * 0.6 + beat, ny * 0.6 - beat) * 0.35;
+          n = Math.max(-1, Math.min(1, fill + beat + shimmer));
+          break;
+        }
+        case 'anomaly': {
+          let sx = nx;
+          let sy = ny;
+          let accum = 0;
+          for (let i = 0; i < 4; i += 1) {
+            const r = Math.hypot(sx, sy) + 0.0001;
+            const angle = Math.atan2(sy, sx);
+            sx = fastSin(angle * 3 + t * 0.7 + i) / r + fastCos(sy * 0.5 + t * 0.3);
+            sy = fastCos(angle * 2 - t * 0.5 - i) / r + fastSin(sx * 0.5 - t * 0.2);
+            accum += noise.noise(sx * 1.6, sy * 1.6);
+          }
+          const vortex = fastSin(accum * 2 + t * 0.8);
+          const spiral =
+            fastSin((Math.atan2(ny, nx) + t) * 10) / Math.max(0.35, Math.hypot(nx, ny));
+          n = Math.max(-1, Math.min(1, vortex * 0.7 + spiral * 0.3));
           break;
         }
         case 'perlin':
@@ -343,8 +454,13 @@ function computeFrame(timeMs: number) {
       jitters,
       cols,
       rows
-    } satisfies FrameDataMessage
+    } satisfies FrameDataMessage,
+    [bands.buffer, shaped.buffer, jitters.buffer]
   );
+  const cells = cols * rows;
+  bands = new Uint16Array(cells);
+  shaped = new Float32Array(cells);
+  jitters = new Float32Array(cells);
 }
 
 self.onmessage = (event: MessageEvent<MessageIn>) => {

@@ -24,12 +24,15 @@
               <span></span>
             </span>
           </button>
-          <div id="command-panel" class="command-panel" hidden>
+        <div id="command-panel" class="command-panel" hidden>
+          <div class="panel-header">
             <button id="view-toggle" class="view-toggle" type="button" aria-pressed="false">
               <span class="glyph-mark" aria-hidden="true"></span>
-              <span class="label">Theater Mode</span>
+              <span class="label">Theatre Mode</span>
             </button>
-            <div class="command-section palette-section">
+            <span id="fps-indicator" class="fps-pill" aria-live="polite">-- fps</span>
+          </div>
+          <div class="command-section palette-section">
               <div class="section-top"><span class="section-label">Palette</span></div>
               <div class="section-body inline">
                 <input
@@ -42,11 +45,29 @@
                   placeholder="#ff8800"
                 />
                 <button id="palette-add" class="chip-button" type="button">Add</button>
+                <button
+                  id="palette-random"
+                  class="chip-button ghost tiny"
+                  type="button"
+                  aria-label="Random Palette"
+                >
+                  ?
+                </button>
               </div>
               <div id="palette-swatches" class="swatch-list" aria-live="polite"></div>
             </div>
             <div class="command-section glyph-section">
-              <div class="section-top"><span class="section-label">Glyphs</span></div>
+              <div class="section-top">
+                <span class="section-label">Glyphs</span>
+                <button
+                  id="glyph-random"
+                  class="chip-button ghost tiny"
+                  type="button"
+                  aria-label="Random Glyphs"
+                >
+                  ?
+                </button>
+              </div>
               <div class="section-body full">
                 <textarea
                   id="glyph-input"
@@ -62,6 +83,20 @@
               <div class="section-top"><span class="section-label">Styles</span></div>
               <div class="section-body full style-body">
                 <div id="style-options" class="style-options"></div>
+              </div>
+            </div>
+            <div class="command-section extras-section">
+              <div class="section-top"><span class="section-label">Extras</span></div>
+              <div class="section-body extras-buttons">
+                <button id="extra-pointer" class="chip-button" type="button" aria-pressed="false">
+                  Pointer Gravity
+                </button>
+                <button id="extra-pointer-expansion" class="chip-button" type="button" aria-pressed="false">
+                  Pointer Expansion
+                </button>
+                <button id="extra-velocity" class="chip-button" type="button" aria-pressed="false">
+                  Pointer Velocity
+                </button>
               </div>
             </div>
             <div class="command-section param-section">

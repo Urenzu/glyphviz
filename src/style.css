@@ -157,26 +157,27 @@ body:not(.controls-visible) .chrome {
 }
 
 .command-panel {
-  width: min(320px, 68vw);
-  background: linear-gradient(160deg, rgba(8, 8, 8, 0.98), rgba(12, 12, 12, 0.95));
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 26px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  padding: 12px;
+  width: min(280px, 64vw);
+  background: rgba(6, 6, 6, 0.9);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   overflow: hidden;
-  max-height: 80vh;
+  max-height: 78vh;
   transition: opacity 0.22s ease, transform 0.22s ease, max-height 0.25s ease;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  backdrop-filter: blur(12px);
 }
 
 .command-shell:not(.open) .command-panel {
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-6px);
+  transform: translateY(-4px);
   max-height: 0;
   padding-top: 0;
   padding-bottom: 0;
@@ -185,7 +186,7 @@ body:not(.controls-visible) .chrome {
 }
 
 .command-shell.open .command-panel {
-  max-height: 80vh;
+  max-height: 78vh;
   overflow-y: auto;
 }
 
@@ -194,24 +195,23 @@ body:not(.controls-visible) .chrome {
 }
 
 .command-section {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 10px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .section-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   color: var(--muted);
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 10px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -221,7 +221,11 @@ body:not(.controls-visible) .chrome {
 
 .section-body {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+}
+
+.section-body.extras-buttons {
+  flex-direction: column;
 }
 
 .section-body.inline {
@@ -234,41 +238,56 @@ body:not(.controls-visible) .chrome {
 
 .chip-button {
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--fg);
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  text-transform: none;
   cursor: pointer;
   transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .chip-button:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .chip-button:active {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .chip-button.ghost {
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.015);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.chip-button.tiny {
+  width: 28px;
+  padding: 6px 0;
+  text-align: center;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.chip-button.active {
+  border-color: rgba(0, 180, 255, 0.4);
+  background: rgba(0, 150, 255, 0.1);
+  color: #bcefff;
+  box-shadow: none;
 }
 
 .palette-input,
 .glyph-input,
 .param-number {
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--fg);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border-radius: 8px;
+  padding: 7px 10px;
   font-family: 'DM Mono', 'Space Grotesk', monospace;
   font-size: 12px;
   outline: none;
@@ -285,40 +304,39 @@ body:not(.controls-visible) .chrome {
 .style-body {
   width: 100%;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .style-options {
   width: 100%;
-  background: linear-gradient(160deg, rgba(10, 10, 10, 0.95), rgba(6, 6, 6, 0.92));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  padding: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 4px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 4px;
 }
 
 .style-option {
   appearance: none;
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--fg);
-  border-radius: 10px;
-  padding: 10px 8px;
+  border-radius: 8px;
+  padding: 8px 6px;
   font-family: 'DM Mono', 'Space Grotesk', monospace;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: none;
   cursor: pointer;
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 
 .style-option:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
   transform: translateY(-1px);
 }
 
@@ -328,8 +346,8 @@ body:not(.controls-visible) .chrome {
 }
 
 .style-option.active {
-  border-color: rgba(255, 255, 255, 0.3);
-  background: linear-gradient(140deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .glyph-input {
@@ -346,12 +364,12 @@ body:not(.controls-visible) .chrome {
 
 .swatch {
   position: relative;
-  width: 46px;
-  height: 28px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  width: 40px;
+  height: 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: var(--swatch-color, #fff);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 22px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 6px 14px rgba(0, 0, 0, 0.35);
   overflow: hidden;
   cursor: pointer;
 }
@@ -390,37 +408,37 @@ body:not(.controls-visible) .chrome {
 .param-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .param-row {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 4px 6px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 4px 5px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .param-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .param-label {
   color: var(--muted);
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  font-size: 10px;
+  letter-spacing: 0.03em;
   font-feature-settings: 'tnum';
 }
 
 .param-slider {
   width: 100%;
   appearance: none;
-  height: 3px;
+  height: 2px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04));
   outline: none;
@@ -433,7 +451,7 @@ body:not(.controls-visible) .chrome {
   height: 10px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .param-slider::-moz-range-thumb {
@@ -442,13 +460,13 @@ body:not(.controls-visible) .chrome {
   border: none;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .param-number {
-  width: 64px;
+  width: 58px;
   text-align: right;
-  padding-right: 6px;
+  padding-right: 4px;
   font-size: 11px;
 }
 
@@ -457,15 +475,15 @@ body:not(.controls-visible) .chrome {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(140deg, #050505, #0b0b0b 50%, #111);
   color: var(--fg);
-  padding: 10px 14px;
+  padding: 6px 12px;
   display: inline-flex;
-  gap: 10px;
+  gap: 6px;
   align-items: center;
-  border-radius: 12px;
-  letter-spacing: 0.08em;
+  border-radius: 10px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  font-weight: 700;
-  font-size: 12px;
+  font-weight: 600;
+  font-size: 10px;
   cursor: pointer;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition:
@@ -496,6 +514,26 @@ body:not(.controls-visible) .chrome {
 body.theater-mode .view-toggle {
   border-color: rgba(255, 255, 255, 0.16);
   background: linear-gradient(135deg, #040404, #0d0d0d 55%, #131313);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fps-pill {
+  font-family: 'DM Mono', 'Space Grotesk', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.02);
+  white-space: nowrap;
 }
 
 .glyph-mark {

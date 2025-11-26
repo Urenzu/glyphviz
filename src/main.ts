@@ -3,12 +3,13 @@ import { presets, type Preset } from './presets';
 import { initDropdown, type DropdownController } from './dropdown';
 import { type Config, type PaletteColor, type ParamDef } from './types';
 
-const startPresetName: string = 'custom'; // set to 'custom' or any preset name from presets.ts
-const GRID_SIZE = 54;
+const startPresetName: string = 'Neon_Ouroboros'; // set to 'custom' or any preset name from presets.ts
+const DEFAULT_GRID_SIZE = 100;
+let currentGridSize = DEFAULT_GRID_SIZE;
 
 const customConfig: Config = {
-  cols: GRID_SIZE,
-  rows: GRID_SIZE,
+  cols: DEFAULT_GRID_SIZE,
+  rows: DEFAULT_GRID_SIZE,
   glyphs: ['.', ':', '-', '+', '=', '*', '%', '#', '@'],
   palette: [
     [18, 18, 18], // near-black
@@ -34,13 +35,29 @@ const customConfig: Config = {
   alphaGain: 0.28,
   warpStrength: 0,
   warpFrequency: 0.4,
+  trailStrength: 0.4,
+  dualLayerStrength: 0,
+  axisBlend: 0,
+  dynamicGlyphMix: 0,
+  chromaticAberration: 0,
+  radialBloom: 0,
+  blurAmount: 0,
+  sharpenAmount: 0,
+  colorTwist: 0,
+  embossStrength: 0,
+  rippleDistortion: 0,
+  layerBlend: 0,
   style: 'perlin',
   seed: 707
 };
 
 const canvas = document.querySelector<HTMLCanvasElement>('#glyph-canvas') as HTMLCanvasElement;
-const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+const displayCtx = canvas.getContext('2d') as CanvasRenderingContext2D;
+const sceneCanvas = document.createElement('canvas');
+const ctx = sceneCanvas.getContext('2d') as CanvasRenderingContext2D;
 const frame = canvas.parentElement as HTMLElement;
+const fpsLabel = document.querySelector<HTMLElement>('#fps-indicator');
+let lastFpsUpdate = 0;
 
 const state = {
   width: 640,
@@ -52,6 +69,21 @@ const state = {
 
 let displayMode: 'square' | 'theater' = 'square';
 let dropdown: DropdownController | null = null;
+const extrasState = {
+  pointerGravity: false,
+  pointerExpansion: false,
+  pointerVelocity: false
+};
+const pointerState = {
+  active: false,
+  x: state.width * 0.5,
+  y: state.height * 0.5,
+  targetX: state.width * 0.5,
+  targetY: state.height * 0.5,
+  vx: 0,
+  vy: 0,
+  lastTime: 0
+};
 
 function mulberry32(seed: number): () => number {
   return () => {
@@ -139,6 +171,43 @@ function samplePalette(pal: PaletteColor[], t: number): string {
 
 function withAlpha(rgb: string, alpha: number): string {
   return rgb.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`);
+}
+
+const TAU = Math.PI * 2;
+const INV_TAU = 1 / TAU;
+const SIN_LUT_SIZE = 8192;
+const SIN_LUT_MASK = SIN_LUT_SIZE - 1;
+const SIN_LUT = new Float32Array(SIN_LUT_SIZE);
+for (let i = 0; i < SIN_LUT_SIZE; i += 1) {
+  SIN_LUT[i] = Math.sin((i / SIN_LUT_SIZE) * TAU);
+}
+
+function fastSin(angle: number): number {
+  let normalized = angle * INV_TAU;
+  normalized -= Math.floor(normalized);
+  return SIN_LUT[(normalized * SIN_LUT_SIZE) & SIN_LUT_MASK];
+}
+
+function fastCos(angle: number): number {
+  return fastSin(angle + Math.PI * 0.5);
+}
+
+function paletteLuminance(color: PaletteColor): number {
+  return color[0] * 0.2126 + color[1] * 0.7152 + color[2] * 0.0722;
+}
+
+function getHighlightColor(pal: PaletteColor[]): PaletteColor {
+  if (!pal.length) return [255, 255, 255];
+  let brightest = pal[0];
+  let bestLuma = paletteLuminance(brightest);
+  for (let i = 1; i < pal.length; i += 1) {
+    const luma = paletteLuminance(pal[i]);
+    if (luma > bestLuma) {
+      brightest = pal[i];
+      bestLuma = luma;
+    }
+  }
+  return brightest;
 }
 
 const POW_LUT_SIZE = 2048;
@@ -311,9 +380,10 @@ function syncWorkerConfig() {
 }
 
 function buildConfig(preset: Preset): Config {
+  const gridSize = currentGridSize;
   return {
-    cols: GRID_SIZE,
-    rows: GRID_SIZE,
+    cols: gridSize,
+    rows: gridSize,
     glyphs: preset.glyphs,
     palette: preset.palette,
     bandCount: preset.bandCount,
@@ -333,6 +403,18 @@ function buildConfig(preset: Preset): Config {
     alphaGain: preset.alphaGain ?? 0.28,
     warpStrength: preset.warpStrength ?? 0,
     warpFrequency: preset.warpFrequency ?? 0.4,
+    trailStrength: preset.trailStrength ?? 0.4,
+    dualLayerStrength: preset.dualLayerStrength ?? 0,
+    axisBlend: preset.axisBlend ?? 0,
+    dynamicGlyphMix: preset.dynamicGlyphMix ?? 0,
+    chromaticAberration: preset.chromaticAberration ?? 0,
+    radialBloom: preset.radialBloom ?? 0,
+    blurAmount: preset.blurAmount ?? 0,
+    sharpenAmount: preset.sharpenAmount ?? 0,
+    colorTwist: preset.colorTwist ?? 0,
+    embossStrength: preset.embossStrength ?? 0,
+    rippleDistortion: preset.rippleDistortion ?? 0,
+    layerBlend: preset.layerBlend ?? 0,
     style: preset.style ?? 'perlin',
     seed: preset.seed ?? 1
   };
@@ -347,6 +429,8 @@ const initialConfig =
 const config = { ...initialConfig };
 let palette = config.palette;
 let glyphs = config.glyphs;
+let paletteHighlight = getHighlightColor(palette);
+let paletteVersion = 1;
 let noise = new Perlin2D(config.seed);
 let currentPresetName = startPresetName === 'custom' ? 'custom' : presets[presetIndex]?.name ?? 'custom';
 const glyphAtlas = new GlyphAtlas();
@@ -360,6 +444,63 @@ let noiseBaseX = new Float32Array(0);
 let noiseBaseY = new Float32Array(0);
 let sinPhase = new Float32Array(0);
 let cachedFontSize = 0;
+
+type BloomCache = {
+  width: number;
+  height: number;
+  innerRadius: number;
+  outerRadius: number;
+  paletteVersion: number;
+  bloomLevel: number;
+  gradient: CanvasGradient | null;
+};
+
+const bloomCache: BloomCache = {
+  width: 0,
+  height: 0,
+  innerRadius: 0,
+  outerRadius: 0,
+  paletteVersion: -1,
+  bloomLevel: -1,
+  gradient: null
+};
+
+function getBloomGradient(ctx: CanvasRenderingContext2D, bloomLevel: number, dpr: number): CanvasGradient {
+  const width = canvas.width;
+  const height = canvas.height;
+  const maxRadius = Math.hypot(width, height) * (0.35 + bloomLevel * 0.4);
+  const innerRadius = Math.max(40 * dpr, maxRadius * 0.2);
+  if (
+    !bloomCache.gradient ||
+    bloomCache.width !== width ||
+    bloomCache.height !== height ||
+    bloomCache.innerRadius !== innerRadius ||
+    bloomCache.outerRadius !== maxRadius ||
+    bloomCache.paletteVersion !== paletteVersion ||
+    Math.abs(bloomCache.bloomLevel - bloomLevel) > 0.01
+  ) {
+    const highlight = paletteHighlight;
+    const warmed: PaletteColor = [
+      Math.min(255, highlight[0] + 30),
+      Math.min(255, highlight[1] + 20),
+      Math.min(255, highlight[2] + 20)
+    ];
+    const gradient = ctx.createRadialGradient(width * 0.5, height * 0.5, innerRadius, width * 0.5, height * 0.5, maxRadius);
+    const innerAlpha = Math.min(0.8, 0.25 + bloomLevel * 0.35);
+    const midAlpha = Math.min(0.45, 0.12 + bloomLevel * 0.25);
+    gradient.addColorStop(0, `rgba(${warmed[0]}, ${warmed[1]}, ${warmed[2]}, ${innerAlpha})`);
+    gradient.addColorStop(0.5, `rgba(${highlight[0]}, ${highlight[1]}, ${highlight[2]}, ${midAlpha})`);
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    bloomCache.width = width;
+    bloomCache.height = height;
+    bloomCache.innerRadius = innerRadius;
+    bloomCache.outerRadius = maxRadius;
+    bloomCache.paletteVersion = paletteVersion;
+    bloomCache.bloomLevel = bloomLevel;
+    bloomCache.gradient = gradient;
+  }
+  return bloomCache.gradient!;
+}
 
 function rebuildBandCache() {
   const bands = Math.max(1, config.bandCount);
@@ -408,13 +549,19 @@ function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
   const targetWidth = displayMode === 'theater' ? rect.width : Math.min(rect.width, rect.height);
   const targetHeight = displayMode === 'theater' ? rect.height : targetWidth;
+  const pixelWidth = targetWidth * dpr;
+  const pixelHeight = targetHeight * dpr;
   const cellWidth = targetWidth / config.cols;
   const cellHeight = targetHeight / config.rows;
   const cellSize = Math.min(cellWidth, cellHeight);
-  canvas.width = targetWidth * dpr;
-  canvas.height = targetHeight * dpr;
+  canvas.width = pixelWidth;
+  canvas.height = pixelHeight;
+  sceneCanvas.width = pixelWidth;
+  sceneCanvas.height = pixelHeight;
   canvas.style.width = `${targetWidth}px`;
   canvas.style.height = `${targetHeight}px`;
+  displayCtx.setTransform(1, 0, 0, 1, 0, 0);
+  displayCtx.scale(dpr, dpr);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
   state.width = targetWidth;
@@ -425,6 +572,12 @@ function resizeCanvas() {
   cachedFontSize = 0;
   rebuildGridCache();
   refreshGlyphAtlas();
+  if (!pointerState.active) {
+    pointerState.x = state.width * 0.5;
+    pointerState.y = state.height * 0.5;
+    pointerState.targetX = pointerState.x;
+    pointerState.targetY = pointerState.y;
+  }
 }
 
 function updateHud() {
@@ -450,6 +603,8 @@ function applyPalette(next: PaletteColor[]) {
   const safe = next.length ? next : fallback;
   palette = safe;
   config.palette = safe;
+  paletteHighlight = getHighlightColor(safe);
+  paletteVersion += 1;
   markCustomPreset();
   rebuildBandCache();
   refreshGlyphAtlas();
@@ -464,10 +619,56 @@ function applyGlyphs(next: string[]) {
   refreshGlyphAtlas();
 }
 
+function setPointerGravity(enabled: boolean) {
+  extrasState.pointerGravity = enabled;
+  if (!enabled) {
+    pointerState.targetX = state.width * 0.5;
+    pointerState.targetY = state.height * 0.5;
+  }
+}
+
+function setPointerExpansion(enabled: boolean) {
+  extrasState.pointerExpansion = enabled;
+  if (!enabled && !extrasState.pointerGravity) {
+    pointerState.targetX = state.width * 0.5;
+    pointerState.targetY = state.height * 0.5;
+  }
+}
+
+function updatePointerFromEvent(event: PointerEvent) {
+  const rect = canvas.getBoundingClientRect();
+  const nextX = event.clientX - rect.left;
+  const nextY = event.clientY - rect.top;
+  const time = event.timeStamp || performance.now();
+  const dt = pointerState.lastTime > 0 ? Math.max(8, time - pointerState.lastTime) : 16;
+  const dx = nextX - pointerState.targetX;
+  const dy = nextY - pointerState.targetY;
+  pointerState.vx = dx / dt;
+  pointerState.vy = dy / dt;
+  pointerState.targetX = nextX;
+  pointerState.targetY = nextY;
+  pointerState.lastTime = time;
+  pointerState.active = true;
+}
+
+function setPointerVelocity(enabled: boolean) {
+  extrasState.pointerVelocity = enabled;
+}
+
 const paramDefs: ParamDef[] = [
-  { key: 'bandCount', label: 'Bands', min: 2, max: 32, step: 1, integer: true, affectsBand: true, syncWorker: true },
-  { key: 'scale', label: 'Scale', min: 0.01, max: 0.2, step: 0.001, affectsGrid: true, syncWorker: true },
-  { key: 'secondaryScale', label: 'Secondary Scale', min: 0.01, max: 0.3, step: 0.001, syncWorker: true },
+  {
+    key: 'cols',
+    label: 'Grid Size',
+    min: 24,
+    max: 250,
+    step: 1,
+    integer: true,
+    affectsGrid: true,
+    syncWorker: true
+  },
+  { key: 'bandCount', label: 'Bands', min: 2, max: 50, step: 1, integer: true, affectsBand: true, syncWorker: true },
+  { key: 'scale', label: 'Scale', min: 0.002, max: 0.4, step: 0.001, affectsGrid: true, syncWorker: true },
+  { key: 'secondaryScale', label: 'Secondary Scale', min: 0.002, max: 0.3, step: 0.001, syncWorker: true },
   { key: 'drift', label: 'Drift', min: 0, max: 1, step: 0.01, syncWorker: true },
   { key: 'driftWaveAmp', label: 'Drift Wave Amp', min: 0, max: 1.5, step: 0.01, syncWorker: true },
   { key: 'driftWaveFreq', label: 'Drift Wave Freq', min: 0, max: 4, step: 0.05, syncWorker: true },
@@ -481,7 +682,19 @@ const paramDefs: ParamDef[] = [
   { key: 'snapStrength', label: 'Snap', min: 0, max: 2, step: 0.01, syncWorker: true },
   { key: 'anisotropy', label: 'Anisotropy', min: 0.2, max: 3, step: 0.01, syncWorker: true },
   { key: 'spikeChance', label: 'Spike Chance', min: 0, max: 0.5, step: 0.01, syncWorker: true },
-  { key: 'spikeIntensity', label: 'Spike Intensity', min: 0, max: 2, step: 0.05, syncWorker: true }
+  { key: 'spikeIntensity', label: 'Spike Intensity', min: 0, max: 2, step: 0.05, syncWorker: true },
+  { key: 'trailStrength', label: 'Trail Blend', min: 0, max: 1, step: 0.01 },
+  { key: 'dualLayerStrength', label: 'Dual Layer', min: 0, max: 1, step: 0.01 },
+  { key: 'layerBlend', label: 'Layer Blend', min: 0, max: 1, step: 0.01 },
+  { key: 'axisBlend', label: 'Axis Palette', min: 0, max: 1, step: 0.01 },
+  { key: 'dynamicGlyphMix', label: 'Glyph Drift', min: 0, max: 1, step: 0.01 },
+  { key: 'chromaticAberration', label: 'Chromatic Aberration', min: 0, max: 1, step: 0.01 },
+  { key: 'radialBloom', label: 'Radial Bloom', min: 0, max: 1, step: 0.01 },
+  { key: 'blurAmount', label: 'Blur', min: 0, max: 1, step: 0.01 },
+  { key: 'sharpenAmount', label: 'Sharpen', min: 0, max: 1, step: 0.01 },
+  { key: 'colorTwist', label: 'Color Twist', min: 0, max: 1, step: 0.01 },
+  { key: 'embossStrength', label: 'Emboss', min: 0, max: 1, step: 0.01 },
+  { key: 'rippleDistortion', label: 'Ripple Distortion', min: 0, max: 1, step: 0.01, affectsGrid: true }
 ];
 
 function applyParamChange(def: ParamDef, rawValue: number) {
@@ -489,6 +702,10 @@ function applyParamChange(def: ParamDef, rawValue: number) {
   if (!Number.isFinite(numeric)) return;
   const clamped = clamp(def.integer ? Math.round(numeric) : numeric, def.min, def.max);
   (config as Record<string, number>)[def.key] = clamped;
+  if (def.key === 'cols') {
+    config.rows = clamped;
+    currentGridSize = clamped;
+  }
   markCustomPreset();
   let needsBandCache = false;
   let needsGridCache = false;
@@ -497,6 +714,10 @@ function applyParamChange(def: ParamDef, rawValue: number) {
   }
   if (def.affectsGrid) {
     needsGridCache = true;
+  }
+  if (def.key === 'cols') {
+    resizeCanvas();
+    needsGridCache = false;
   }
   if (needsBandCache) {
     rebuildBandCache();
@@ -524,9 +745,15 @@ function render(timeMs: number) {
     workerPendingFrame = true;
     noiseWorker.postMessage({ type: 'frame', time: timeMs });
   }
-  ctx.clearRect(0, 0, state.width, state.height);
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.globalCompositeOperation = 'source-over';
+  const trailStrength = clamp(config.trailStrength, 0, 1);
+  if (trailStrength <= 0.01) {
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  const fadeAlpha = Math.max(0.02, 1 - trailStrength * 0.98);
+  ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
   ctx.fillRect(0, 0, state.width, state.height);
+  const allowLightMode = clamp(config.layerBlend, 0, 1) > 0.25;
 
   const fontSize = state.cellSize * 0.9;
   if (fontSize !== cachedFontSize) {
@@ -556,7 +783,25 @@ function render(timeMs: number) {
     spikeChance,
     spikeIntensity
   } = config;
-  const driftWave = 1 + config.driftWaveAmp * Math.sin(t * config.driftWaveFreq);
+  const dualLayerStrength = clamp(config.dualLayerStrength, 0, 1);
+  const axisBlend = clamp(config.axisBlend, 0, 1);
+  const dynamicGlyphMix = clamp(config.dynamicGlyphMix, 0, 1);
+  const pointerGravity = extrasState.pointerGravity;
+  const pointerExpansion = extrasState.pointerExpansion;
+  const pointerVelocityMode = extrasState.pointerVelocity;
+  const pointerEnabled = pointerGravity || pointerExpansion || pointerVelocityMode;
+  if (!pointerEnabled || !pointerState.active) {
+    pointerState.targetX = state.width * 0.5;
+    pointerState.targetY = state.height * 0.5;
+  }
+  pointerState.targetX = clamp(pointerState.targetX, 0, state.width);
+  pointerState.targetY = clamp(pointerState.targetY, 0, state.height);
+  pointerState.x += (pointerState.targetX - pointerState.x) * 0.08;
+  pointerState.y += (pointerState.targetY - pointerState.y) * 0.08;
+  const pointerVelX = pointerState.vx * 16;
+  const pointerVelY = pointerState.vy * 16;
+  const pointerSpeed = Math.min(1, Math.hypot(pointerVelX, pointerVelY) / 8);
+  const driftWave = 1 + config.driftWaveAmp * fastSin(t * config.driftWaveFreq);
   const driftNow = drift * driftWave;
   const jitterStrength = jitter * state.cellSize;
   const jitterXScale = jitterStrength * 0.35;
@@ -568,6 +813,7 @@ function render(timeMs: number) {
   const timeWave = t * 0.9;
   const centerX = state.width * 0.5;
   const centerY = state.height * 0.5;
+  const axisOverlaySize = state.cellSize * (1.1 + axisBlend * 0.6);
   const expectedCells = cols * rows;
   const useWorker =
     workerBands &&
@@ -579,7 +825,7 @@ function render(timeMs: number) {
 
   for (let y = 0; y < rows; y += 1) {
     const nyBase = useWorker ? 0 : noiseBaseY[y] + t * driftNow * 0.35;
-    const py = baseY[y];
+    const basePy = baseY[y];
     const rowBase = y * cols;
     for (let x = 0; x < cols; x += 1) {
       const idx = rowBase + x;
@@ -605,15 +851,98 @@ function render(timeMs: number) {
             n = h * (1 + (1 - z) * 0.5);
             break;
           }
+          case 'kaleido': {
+            const cx = x / cols - 0.5;
+            const cy = y / rows - 0.5;
+            const radius = Math.hypot(cx, cy);
+            const angle = Math.atan2(cy, cx);
+          const slices = 8;
+          const sliceAngle = (Math.PI * 2) / slices;
+          const normalizedAngle = Math.abs(
+            (((angle % sliceAngle) + sliceAngle) % sliceAngle) - sliceAngle * 0.5
+          );
+          const sampleX = fastCos(normalizedAngle) * radius * 10 + t * 0.3;
+          const sampleY = fastSin(normalizedAngle) * radius * 10 - t * 0.3;
+          const blot = noise.noise(sampleX, sampleY);
+          const ripple = fastSin(radius * 24 - t * 2 + normalizedAngle * 6);
+          n = blot * 0.7 + ripple * 0.3;
+          break;
+        }
+          case 'flow': {
+            let fx = nx;
+            let fy = ny;
+            for (let i = 0; i < 3; i += 1) {
+              const dvx = noise.noise(fx, fy + 0.35) - noise.noise(fx, fy - 0.35);
+              const dvy = noise.noise(fx - 0.35, fy) - noise.noise(fx + 0.35, fy);
+              fx += dvx * 0.7;
+              fy += dvy * 0.7;
+            }
+            n = noise.noise(fx, fy);
+            break;
+          }
+          case 'orbital': {
+            const cx = x / cols - 0.5;
+            const cy = y / rows - 0.5;
+            const orb1x = fastSin(t * 0.2) * 0.35;
+            const orb1y = fastCos(t * 0.25) * 0.35;
+            const orb2x = fastSin(t * 0.33 + 1.2) * 0.55;
+            const orb2y = fastCos(t * 0.29 + 0.8) * 0.55;
+            const d1 = Math.hypot(cx - orb1x, cy - orb1y);
+            const d2 = Math.hypot(cx - orb2x, cy - orb2y);
+            const caustic = Math.exp(-d1 * 8) + Math.exp(-d2 * 8);
+            const shimmer = fastSin(d1 * 40 - t * 2) + fastSin(d2 * 36 + t * 1.6);
+            const carrier = noise.noise(nx * 0.6 + t * 0.08, ny * 0.6 - t * 0.08);
+            n = caustic * 0.5 + shimmer * 0.25 + carrier * 0.25;
+            break;
+          }
+          case 'cellular': {
+            const n1 = noise.noise(nx * secondaryScale, ny * secondaryScale);
+            const n2 = noise.noise(nx * secondaryScale + 0.4, ny * secondaryScale - 0.2);
+            const diff = Math.abs(n1 - n2);
+            const shell = 1 - Math.min(1, diff * 1.8);
+            const pocket = Math.max(n1, n2) * 0.5 + noise.noise(nx * 0.7, ny * 0.7) * 0.5;
+            n = shell * 0.7 + pocket * 0.3;
+            break;
+          }
+          case 'hearts': {
+            const tiles = 6;
+            const localX = ((x / cols) * tiles) % 1;
+            const localY = ((y / rows) * tiles) % 1;
+            const hx = (localX - 0.5) * 2;
+            const hy = (localY - 0.5) * -2;
+            const shape = Math.pow(hx * hx + hy * hy - 1, 3) - hx * hx * hy * hy * hy;
+            const beat = fastSin(t * 3 + (hx + hy) * 6) * 0.2;
+            const fill = Math.tanh(-shape * 3);
+            const shimmer = noise.noise(nx * 0.6 + beat, ny * 0.6 - beat) * 0.35;
+            n = Math.max(-1, Math.min(1, fill + beat + shimmer));
+            break;
+          }
+          case 'anomaly': {
+            let sx = nx;
+            let sy = ny;
+            let accum = 0;
+            for (let i = 0; i < 4; i += 1) {
+              const r = Math.hypot(sx, sy) + 0.0001;
+              const angle = Math.atan2(sy, sx);
+            sx = fastSin(angle * 3 + t * 0.7 + i) / r + fastCos(sy * 0.5 + t * 0.3);
+            sy = fastCos(angle * 2 - t * 0.5 - i) / r + fastSin(sx * 0.5 - t * 0.2);
+              accum += noise.noise(sx * 1.6, sy * 1.6);
+            }
+          const vortex = fastSin(accum * 2 + t * 0.8);
+          const spiral =
+            fastSin((Math.atan2(ny, nx) + t) * 10) / Math.max(0.35, Math.hypot(nx, ny));
+            n = Math.max(-1, Math.min(1, vortex * 0.7 + spiral * 0.3));
+            break;
+          }
           case 'tunnel': {
-            const cx = x / cols - 0.5 + Math.sin(t * 0.35) * 0.05;
-            const cy = y / rows - 0.5 + Math.cos(t * 0.25) * 0.05;
+            const cx = x / cols - 0.5 + fastSin(t * 0.35) * 0.05;
+            const cy = y / rows - 0.5 + fastCos(t * 0.25) * 0.05;
             const angle = Math.atan2(cy, cx) + t * 0.4;
             const radius = Math.hypot(cx, cy);
             const radial = Math.log1p(radius * 6);
             const twist = noise.noise(angle * 1.6 + t * 0.6, radial * 3 + t * 0.4);
             const depth = 1 / Math.max(0.12, radial + 0.08 + twist * 0.04);
-            const stripe = Math.sin(angle * 10 + t * 3 + radial * 18 + twist * 2);
+            const stripe = fastSin(angle * 10 + t * 3 + radial * 18 + twist * 2);
             const jitter = noise.noise(angle * 4 - t * 0.5, radial * 5 + t * 0.7);
             n = depth * 0.6 + stripe * 0.25 + jitter * 0.15;
             break;
@@ -625,7 +954,7 @@ function render(timeMs: number) {
             break;
           }
           case 'stripe': {
-            n = Math.sin(nx * 2.2 + ny * 0.4 + t * driftNow * 2.4);
+            n = fastSin(nx * 2.2 + ny * 0.4 + t * driftNow * 2.4);
             break;
           }
           case 'height': {
@@ -682,15 +1011,15 @@ function render(timeMs: number) {
             break;
           }
           case 'cyber': {
-            const stripe = Math.sin(nx * 3.2 + t * driftNow * 3) * 0.6;
+            const stripe = fastSin(nx * 3.2 + t * driftNow * 3) * 0.6;
             const base = noise.noise(nx * 1.3, ny * 1.1) * 0.4;
             const ridged = 1 - Math.abs(noise.noise(nx * config.secondaryScale, ny * config.secondaryScale));
             n = stripe + base + ridged * 0.6;
             break;
           }
           case 'glitch': {
-            const base = noise.noise(nx * 1.6, ny * 0.9 + Math.sin(t * 5) * 0.5);
-            const stripe = Math.sin(nx * 4.2 + t * 6.3) * 0.5;
+            const base = noise.noise(nx * 1.6, ny * 0.9 + fastSin(t * 5) * 0.5);
+            const stripe = fastSin(nx * 4.2 + t * 6.3) * 0.5;
             n = base * 0.5 + stripe * 0.5;
             break;
           }
@@ -716,10 +1045,18 @@ function render(timeMs: number) {
         if (band > bandMax) band = bandMax;
         jitterNoise = noise.noise(nx * 2.4 - 3.1, ny * 2.4 + 7.7);
       }
-      const glyphIndex = bandGlyphIndex[band];
+      let glyphIndex = bandGlyphIndex[band];
+    if (dynamicGlyphMix > 0 && glyphs.length > 1) {
+      const dynSource = (fastSin(sinPhase[idx] + t * 0.6) + 1) * 0.5;
+      if (dynSource < dynamicGlyphMix) {
+        const alt = Math.floor(((shapedVal + dynSource) % 1) * glyphs.length);
+        glyphIndex = alt;
+      }
+    }
 
       let px = baseX[x] + jitterNoise * jitterXScale;
-      let pyOffset = Math.sin(timeWave + sinPhase[idx]) * sinAmp + jitterNoise * jitterYScale;
+      let py = basePy;
+      let pyOffset = fastSin(timeWave + sinPhase[idx]) * sinAmp + jitterNoise * jitterYScale;
 
       if (warpStrength !== 0) {
         const cy = py;
@@ -727,36 +1064,179 @@ function render(timeMs: number) {
         const dx = cx - centerX;
         const dy = cy - centerY;
         const dist = Math.hypot(dx, dy);
-        const twist = warpStrength * Math.sin(dist * warpFrequency - t * 0.7);
+        const twist = warpStrength * fastSin(dist * warpFrequency - t * 0.7);
         px += -dy * twist;
         pyOffset += dx * twist;
       }
 
-      const alpha = alphaBase + shapedVal * alphaGain;
+      let drawX = px;
+      let drawY = py + pyOffset;
+      const pdx = pointerState.x - drawX;
+      const pdy = pointerState.y - drawY;
+      if (pointerEnabled) {
+        const dist = Math.max(20, Math.hypot(pdx, pdy));
+        const influence = (state.cellSize * 6) / dist;
+        if (pointerGravity) {
+          drawX += pdx * influence;
+          drawY += pdy * influence;
+        }
+        if (pointerExpansion) {
+          drawX -= pdx * influence;
+          drawY -= pdy * influence;
+        }
+      }
+      if (pointerVelocityMode && pointerSpeed > 0.001) {
+        const swirl = ((pdx * pointerVelY - pdy * pointerVelX) / Math.max(80, state.width)) * pointerSpeed;
+        drawX += swirl * state.cellSize * 1.4;
+        drawY += swirl * state.cellSize * 0.8;
+        drawX += pointerVelX * 0.3 * pointerSpeed;
+        drawY += pointerVelY * 0.3 * pointerSpeed;
+      }
+      const rippleAmount = Math.max(0, config.rippleDistortion);
+      if (rippleAmount > 0) {
+        const ripplePhase = sinPhase[idx] * (0.6 + rippleAmount * 1.6) + t * (1.2 + rippleAmount * 1.4);
+        drawX += fastSin(ripplePhase) * rippleAmount * state.cellSize * 0.9;
+        drawY += fastCos(ripplePhase * 0.9) * rippleAmount * state.cellSize * 0.7;
+      }
+      const marginX = state.cellSize * 0.35;
+      const marginY = state.cellSize * 0.35;
+      drawX = clamp(drawX, marginX, state.width - marginX);
+      drawY = clamp(drawY, marginY, state.height - marginY);
+
+      const alpha = Math.min(1, alphaBase + shapedVal * alphaGain);
 
       ctx.globalAlpha = alpha;
       const image = glyphAtlas.get(band, glyphIndex);
       if (image) {
-        ctx.drawImage(image, px - atlasHalf, py + pyOffset - atlasHalf, atlasSize, atlasSize);
+        ctx.drawImage(image, drawX - atlasHalf, drawY - atlasHalf, atlasSize, atlasSize);
+        if (dualLayerStrength > 0) {
+          const overlaySize = atlasSize * (0.65 + dualLayerStrength * 0.45);
+          const overlayHalf = overlaySize * 0.5;
+          ctx.globalAlpha = alpha * dualLayerStrength * 0.6;
+          ctx.drawImage(image, drawX - overlayHalf, drawY - overlayHalf, overlaySize, overlaySize);
+          ctx.globalAlpha = alpha;
+        }
       } else {
         const color = bandColors[band];
         ctx.fillStyle = color;
         ctx.shadowColor = withAlpha(color, 0.35);
         ctx.shadowBlur = Math.max(6, state.cellSize * 0.6);
-        ctx.fillText(glyphs[glyphIndex], px, py + pyOffset);
+        ctx.fillText(glyphs[glyphIndex], drawX, drawY);
+        if (dualLayerStrength > 0) {
+          const overlayScale = 0.65 + dualLayerStrength * 0.35;
+          ctx.save();
+          ctx.globalAlpha = alpha * dualLayerStrength * 0.6;
+          ctx.font = `${state.cellSize * overlayScale}px "DM Mono", "Space Grotesk", monospace`;
+          ctx.fillText(glyphs[glyphIndex], drawX, drawY);
+          ctx.restore();
+        }
         ctx.shadowBlur = 0;
         ctx.shadowColor = 'transparent';
+      }
+
+      if (axisBlend > 0) {
+        const axisValue = (x / cols + y / rows) * 0.5;
+        const tintColor = samplePalette(palette, axisValue);
+        ctx.save();
+        ctx.globalAlpha = axisBlend * 0.4;
+        ctx.globalCompositeOperation = allowLightMode ? 'lighter' : 'source-over';
+        ctx.fillStyle = tintColor;
+        ctx.fillRect(
+          drawX - axisOverlaySize * 0.5,
+          drawY - axisOverlaySize * 0.5,
+          axisOverlaySize,
+          axisOverlaySize
+        );
+        ctx.restore();
+        ctx.globalAlpha = alpha;
+        ctx.globalCompositeOperation = 'source-over';
       }
     }
   }
 
   ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+
+  applyPostProcessing();
 
   const fps = fpsMeter.tick(timeMs);
+  if (fpsLabel && fps !== null && timeMs - lastFpsUpdate > 250) {
+    fpsLabel.textContent = `${Math.round(fps)} fps`;
+    lastFpsUpdate = timeMs;
+  }
   requestAnimationFrame(render);
 }
 
+function applyPostProcessing() {
+  displayCtx.save();
+  displayCtx.setTransform(1, 0, 0, 1, 0, 0);
+  displayCtx.clearRect(0, 0, canvas.width, canvas.height);
+  const filters: string[] = [];
+  const blurPx = config.blurAmount * 6;
+  if (blurPx > 0.01) {
+    filters.push(`blur(${blurPx.toFixed(2)}px)`);
+  }
+  const sharpen = clamp(config.sharpenAmount, 0, 1);
+  if (sharpen > 0) {
+    filters.push(`contrast(${(1 + sharpen * 0.8).toFixed(2)})`);
+    filters.push(`saturate(${(1 + sharpen * 0.5).toFixed(2)})`);
+  }
+  const twist = config.colorTwist;
+  if (twist > 0) {
+    filters.push(`hue-rotate(${(twist * 360).toFixed(1)}deg)`);
+  }
+  displayCtx.filter = filters.join(' ') || 'none';
+  displayCtx.drawImage(sceneCanvas, 0, 0);
+  displayCtx.filter = 'none';
+  const blendAmount = clamp(config.layerBlend, 0, 1);
+  if (blendAmount > 0.001) {
+    const glowBlur = 1 + blendAmount * 4;
+    displayCtx.globalCompositeOperation = 'lighter';
+    displayCtx.globalAlpha = 0.35 * blendAmount;
+    displayCtx.filter = `blur(${glowBlur.toFixed(2)}px) saturate(${(1 + blendAmount * 0.6).toFixed(2)})`;
+    displayCtx.drawImage(sceneCanvas, 0, 0);
+    displayCtx.filter = 'none';
+    displayCtx.globalAlpha = 1;
+    displayCtx.globalCompositeOperation = 'source-over';
+  }
+  const dpr = window.devicePixelRatio || 1;
+  const chroma = clamp(config.chromaticAberration, 0, 1);
+  if (chroma > 0.001) {
+    const shift = chroma * 4 * dpr;
+    displayCtx.globalCompositeOperation = 'lighter';
+    displayCtx.globalAlpha = 0.35 * chroma;
+    displayCtx.filter = 'hue-rotate(25deg)';
+    displayCtx.drawImage(sceneCanvas, shift, 0);
+    displayCtx.filter = 'hue-rotate(-25deg)';
+    displayCtx.drawImage(sceneCanvas, -shift, 0);
+    displayCtx.filter = 'none';
+    displayCtx.globalAlpha = 1;
+    displayCtx.globalCompositeOperation = 'source-over';
+  }
+  const emboss = clamp(config.embossStrength, 0, 1);
+  if (emboss > 0) {
+    const offset = emboss * 2 * dpr;
+    displayCtx.globalAlpha = 0.4 * emboss;
+    displayCtx.globalCompositeOperation = 'overlay';
+    displayCtx.drawImage(sceneCanvas, offset, offset);
+    displayCtx.globalCompositeOperation = 'multiply';
+    displayCtx.drawImage(sceneCanvas, -offset, -offset);
+    displayCtx.globalCompositeOperation = 'source-over';
+    displayCtx.globalAlpha = 1;
+  }
+  const bloomLevel = clamp(config.radialBloom, 0, 1);
+  if (bloomLevel > 0) {
+    const gradient = getBloomGradient(displayCtx, bloomLevel, dpr);
+    displayCtx.globalCompositeOperation = 'screen';
+    displayCtx.fillStyle = gradient;
+    displayCtx.fillRect(0, 0, canvas.width, canvas.height);
+    displayCtx.globalCompositeOperation = 'source-over';
+  }
+  displayCtx.restore();
+}
+
 function setConfig(next: Config, name: string) {
+  currentGridSize = next.cols;
   config.bandCount = next.bandCount;
   config.scale = next.scale;
   config.secondaryScale = next.secondaryScale;
@@ -776,9 +1256,24 @@ function setConfig(next: Config, name: string) {
   config.alphaGain = next.alphaGain;
   config.warpStrength = next.warpStrength;
   config.warpFrequency = next.warpFrequency;
+  config.trailStrength = next.trailStrength;
+  config.dualLayerStrength = next.dualLayerStrength;
+  config.layerBlend = next.layerBlend;
+  config.axisBlend = next.axisBlend;
+  config.dynamicGlyphMix = next.dynamicGlyphMix;
+  config.chromaticAberration = next.chromaticAberration;
+  config.radialBloom = next.radialBloom;
+  config.blurAmount = next.blurAmount;
+  config.sharpenAmount = next.sharpenAmount;
+  config.colorTwist = next.colorTwist;
+  config.embossStrength = next.embossStrength;
+  config.rippleDistortion = next.rippleDistortion;
   config.style = next.style;
   config.seed = next.seed;
   palette = next.palette;
+  config.palette = next.palette;
+  paletteHighlight = getHighlightColor(palette);
+  paletteVersion += 1;
   glyphs = next.glyphs;
   noise = new Perlin2D(next.seed);
   currentPresetName = name;
@@ -820,7 +1315,22 @@ dropdown = initDropdown({
   getParamValue: (key) => (config as Record<string, number>)[key],
   onParamChange: applyParamChange,
   getStyle: () => config.style,
-  onStyleChange: applyStyle
+  onStyleChange: applyStyle,
+  getPointerGravity: () => extrasState.pointerGravity,
+  onPointerGravityToggle: (value) => {
+    setPointerGravity(value);
+    dropdown?.syncExtras();
+  },
+  getPointerExpansion: () => extrasState.pointerExpansion,
+  onPointerExpansionToggle: (value) => {
+    setPointerExpansion(value);
+    dropdown?.syncExtras();
+  },
+  getPointerVelocity: () => extrasState.pointerVelocity,
+  onPointerVelocityToggle: (value) => {
+    setPointerVelocity(value);
+    dropdown?.syncExtras();
+  }
 });
 dropdown.syncAll();
 window.addEventListener('resize', resizeCanvas);
@@ -833,3 +1343,16 @@ function handleKey(e: KeyboardEvent) {
 }
 
 window.addEventListener('keydown', handleKey);
+canvas.addEventListener('pointermove', (event) => {
+  updatePointerFromEvent(event);
+});
+canvas.addEventListener('pointerdown', (event) => {
+  updatePointerFromEvent(event);
+});
+const handlePointerEnd = () => {
+  pointerState.active = false;
+  pointerState.vx = 0;
+  pointerState.vy = 0;
+};
+canvas.addEventListener('pointerleave', handlePointerEnd);
+canvas.addEventListener('pointerup', handlePointerEnd);

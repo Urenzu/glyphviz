@@ -12,6 +12,12 @@ type DropdownOptions = {
   onParamChange: (def: ParamDef, value: number) => void;
   getStyle: () => Config['style'];
   onStyleChange: (style: Config['style']) => void;
+  getPointerGravity: () => boolean;
+  onPointerGravityToggle: (next: boolean) => void;
+  getPointerExpansion: () => boolean;
+  onPointerExpansionToggle: (next: boolean) => void;
+  getPointerVelocity: () => boolean;
+  onPointerVelocityToggle: (next: boolean) => void;
 };
 
 export type DropdownController = {
@@ -21,6 +27,7 @@ export type DropdownController = {
   syncParams(): void;
   syncStyle(): void;
   syncView(): void;
+  syncExtras(): void;
 };
 
 export function initDropdown(options: DropdownOptions): DropdownController {
@@ -30,10 +37,15 @@ export function initDropdown(options: DropdownOptions): DropdownController {
   const commandPanel = document.querySelector<HTMLElement>('#command-panel');
   const paletteInput = document.querySelector<HTMLInputElement>('#palette-hex');
   const paletteAddButton = document.querySelector<HTMLButtonElement>('#palette-add');
+  const paletteRandomButton = document.querySelector<HTMLButtonElement>('#palette-random');
   const paletteSwatches = document.querySelector<HTMLElement>('#palette-swatches');
   const glyphInput = document.querySelector<HTMLTextAreaElement>('#glyph-input');
+  const glyphRandomButton = document.querySelector<HTMLButtonElement>('#glyph-random');
   const paramList = document.querySelector<HTMLElement>('#param-list');
   const styleOptions = document.querySelector<HTMLElement>('#style-options');
+  const pointerButton = document.querySelector<HTMLButtonElement>('#extra-pointer');
+  const pointerExpansionButton = document.querySelector<HTMLButtonElement>('#extra-pointer-expansion');
+  const velocityButton = document.querySelector<HTMLButtonElement>('#extra-velocity');
 
   let hideChromeTimeout: number | null = null;
   let controlsVisible = false;
@@ -55,7 +67,13 @@ export function initDropdown(options: DropdownOptions): DropdownController {
     'height',
     'perspective',
     'flight',
-    'tunnel'
+    'tunnel',
+    'kaleido',
+    'flow',
+    'orbital',
+    'cellular',
+    'hearts',
+    'anomaly'
   ];
 
   function clamp(value: number, min: number, max: number): number {
@@ -79,6 +97,63 @@ export function initDropdown(options: DropdownOptions): DropdownController {
     const g = parseInt(cleaned.slice(2, 4), 16);
     const b = parseInt(cleaned.slice(4, 6), 16);
     return [r, g, b];
+  }
+
+  function hslToRgb(h: number, s: number, l: number): PaletteColor {
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const hp = h / 60;
+    const x = c * (1 - Math.abs((hp % 2) - 1));
+    let r1 = 0;
+    let g1 = 0;
+    let b1 = 0;
+    if (hp >= 0 && hp < 1) {
+      [r1, g1, b1] = [c, x, 0];
+    } else if (hp >= 1 && hp < 2) {
+      [r1, g1, b1] = [x, c, 0];
+    } else if (hp >= 2 && hp < 3) {
+      [r1, g1, b1] = [0, c, x];
+    } else if (hp >= 3 && hp < 4) {
+      [r1, g1, b1] = [0, x, c];
+    } else if (hp >= 4 && hp < 5) {
+      [r1, g1, b1] = [x, 0, c];
+    } else if (hp >= 5 && hp < 6) {
+      [r1, g1, b1] = [c, 0, x];
+    }
+    const m = l - c / 2;
+    return [
+      clamp(Math.round((r1 + m) * 255), 0, 255),
+      clamp(Math.round((g1 + m) * 255), 0, 255),
+      clamp(Math.round((b1 + m) * 255), 0, 255)
+    ];
+  }
+
+  function randomPalette(): PaletteColor[] {
+    const stops = clamp(Math.round(3 + Math.random() * 3), 3, 6);
+    const baseHue = Math.random() * 360;
+    const list: PaletteColor[] = [];
+    for (let i = 0; i < stops; i += 1) {
+      const hue = (baseHue + i * (Math.random() * 50 + 10)) % 360;
+      const saturation = 0.45 + Math.random() * 0.4;
+      const lightness = 0.2 + Math.random() * 0.55;
+      list.push(hslToRgb(hue, saturation, lightness));
+    }
+    return list;
+  }
+
+  const glyphBank = '.:-+*=/%#@✦✧⋆⋇✳✺☼░▒▓█✚✖◇◆▢▣╳╬∞❤♥♡☯☢☣☄☌☍⚚⚡⚛⚙⚗⚔⚘☾☽✹✺✻✼✽✾✿';
+
+  function randomGlyphs(): string[] {
+    const pool = glyphBank.split('');
+    const count = clamp(Math.round(5 + Math.random() * 10), 5, 16);
+    const list: string[] = [];
+    while (list.length < count && pool.length) {
+      const idx = Math.floor(Math.random() * pool.length);
+      const [char] = pool.splice(idx, 1);
+      if (!char || !char.trim().length) continue;
+      if (list.includes(char)) continue;
+      list.push(char);
+    }
+    return list;
   }
 
   function glyphArrayFromString(input: string): string[] {
@@ -119,7 +194,7 @@ export function initDropdown(options: DropdownOptions): DropdownController {
     viewToggle.setAttribute('aria-pressed', theater ? 'true' : 'false');
     const label = viewToggle.querySelector<HTMLElement>('.label');
     if (label) {
-      label.textContent = theater ? 'Square Mode' : 'Theater Mode';
+      label.textContent = theater ? 'Square Mode' : 'Theatre Mode';
     }
   }
 
@@ -169,6 +244,24 @@ export function initDropdown(options: DropdownOptions): DropdownController {
   function syncGlyphs() {
     if (glyphInput) {
       glyphInput.value = options.getGlyphs().join('');
+    }
+  }
+
+  function syncExtras() {
+    if (pointerButton) {
+      const enabled = options.getPointerGravity();
+      pointerButton.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      pointerButton.classList.toggle('active', enabled);
+    }
+    if (pointerExpansionButton) {
+      const enabled = options.getPointerExpansion();
+      pointerExpansionButton.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      pointerExpansionButton.classList.toggle('active', enabled);
+    }
+    if (velocityButton) {
+      const enabled = options.getPointerVelocity();
+      velocityButton.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      velocityButton.classList.toggle('active', enabled);
     }
   }
 
@@ -279,6 +372,7 @@ export function initDropdown(options: DropdownOptions): DropdownController {
     syncGlyphs();
     syncParams();
     syncStyle();
+    syncExtras();
   }
 
   const wakeChrome = () => showChromeTemporarily();
@@ -291,15 +385,40 @@ export function initDropdown(options: DropdownOptions): DropdownController {
   viewToggle?.addEventListener('focus', showChromeTemporarily);
   commandToggle?.addEventListener('click', toggleCommand);
   paletteAddButton?.addEventListener('click', handlePaletteAdd);
+  paletteRandomButton?.addEventListener('click', () => {
+    const next = randomPalette();
+    options.onPaletteChange(next);
+    syncPalette();
+  });
   paletteInput?.addEventListener('keydown', (event: KeyboardEvent) => {
     if (event.key === 'Enter') {
       event.preventDefault();
       handlePaletteAdd();
     }
   });
+  pointerButton?.addEventListener('click', () => {
+    const next = !options.getPointerGravity();
+    options.onPointerGravityToggle(next);
+    syncExtras();
+  });
+  pointerExpansionButton?.addEventListener('click', () => {
+    const next = !options.getPointerExpansion();
+    options.onPointerExpansionToggle(next);
+    syncExtras();
+  });
+  velocityButton?.addEventListener('click', () => {
+    const next = !options.getPointerVelocity();
+    options.onPointerVelocityToggle(next);
+    syncExtras();
+  });
   glyphInput?.addEventListener('input', () => {
     const parsed = glyphArrayFromString(glyphInput.value);
     options.onGlyphChange(parsed);
+    syncGlyphs();
+  });
+  glyphRandomButton?.addEventListener('click', () => {
+    const glyphs = randomGlyphs();
+    options.onGlyphChange(glyphs);
     syncGlyphs();
   });
   document.addEventListener('click', (event) => {
@@ -328,6 +447,7 @@ export function initDropdown(options: DropdownOptions): DropdownController {
     syncGlyphs,
     syncParams,
     syncStyle,
-    syncView: updateToggleLabel
+    syncView: updateToggleLabel,
+    syncExtras
   };
 }
