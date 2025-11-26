@@ -1,63 +1,21 @@
 import './style.css';
 import { presets, type Preset } from './presets';
+import { initDropdown, type DropdownController } from './dropdown';
+import { type Config, type PaletteColor, type ParamDef } from './types';
 
-type PaletteColor = [number, number, number];
-
-type Config = {
-  cols: number;
-  rows: number;
-  bandCount: number;
-  scale: number;
-  secondaryScale: number;
-  drift: number;
-  jitter: number;
-  quantizeSteps: number;
-  snapStrength: number;
-  anisotropy: number;
-  spikeChance: number;
-  spikeIntensity: number;
-  driftWaveAmp: number;
-  driftWaveFreq: number;
-  waveAmp: number;
-  alphaBase: number;
-  alphaGain: number;
-  warpStrength: number;
-  warpFrequency: number;
-  style:
-    | 'perlin'
-    | 'ridged'
-    | 'stripe'
-    | 'worley'
-    | 'curl'
-    | 'cyber'
-    | 'voronoi'
-    | 'brick'
-    | 'step'
-    | 'glitch'
-    | 'height'
-    | 'perspective'
-    | 'flight'
-    | 'tunnel';
-  glyphs: string[];
-  palette: PaletteColor[];
-  seed: number;
-};
-
-const startPresetName: string = 'Prism_Vortex'; // set to 'custom' or any preset name from presets.ts
-const GRID_SIZE = 100;
+const startPresetName: string = 'custom'; // set to 'custom' or any preset name from presets.ts
+const GRID_SIZE = 54;
 
 const customConfig: Config = {
   cols: GRID_SIZE,
   rows: GRID_SIZE,
-  glyphs: ['.', '+', 'x', '✚', '✖', '◉', '◎', '⊕', '⊗'], // targeting/radar vibe
+  glyphs: ['.', ':', '-', '+', '=', '*', '%', '#', '@'],
   palette: [
     [18, 18, 18], // near-black
     [46, 50, 55], // dark steel
     [86, 90, 95], // mid gray
     [190, 195, 200], // light gray
-    [255, 255, 255], // white
-    [255, 132, 24], // caution amber
-    [255, 170, 80] // warm accent
+    [255, 255, 255] // white
   ],
   bandCount: 8,
   scale: 0.045,
@@ -83,7 +41,6 @@ const customConfig: Config = {
 const canvas = document.querySelector<HTMLCanvasElement>('#glyph-canvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 const frame = canvas.parentElement as HTMLElement;
-const viewToggle = document.querySelector<HTMLButtonElement>('#view-toggle');
 
 const state = {
   width: 640,
@@ -94,8 +51,7 @@ const state = {
 };
 
 let displayMode: 'square' | 'theater' = 'square';
-let controlsVisible = false;
-let hideChromeTimeout: number | null = null;
+let dropdown: DropdownController | null = null;
 
 function mulberry32(seed: number): () => number {
   return () => {
@@ -475,37 +431,91 @@ function updateHud() {
   // HUD disabled
 }
 
-function updateToggleLabel() {
-  if (!viewToggle) return;
-  const theater = displayMode === 'theater';
-  viewToggle.setAttribute('aria-pressed', theater ? 'true' : 'false');
-  const label = viewToggle.querySelector<HTMLElement>('.label');
-  if (label) {
-    label.textContent = theater ? 'Square Mode' : 'Theater Mode';
-  }
-}
-
-function showChromeTemporarily() {
-  if (!controlsVisible) {
-    document.body.classList.add('controls-visible');
-    controlsVisible = true;
-  }
-  if (hideChromeTimeout !== null) {
-    window.clearTimeout(hideChromeTimeout);
-  }
-  hideChromeTimeout = window.setTimeout(() => {
-    document.body.classList.remove('controls-visible');
-    controlsVisible = false;
-    hideChromeTimeout = null;
-  }, 2400);
-}
-
 function toggleDisplayMode() {
   displayMode = displayMode === 'square' ? 'theater' : 'square';
   document.body.classList.toggle('theater-mode', displayMode === 'theater');
-  updateToggleLabel();
   resizeCanvas();
-  showChromeTemporarily();
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function markCustomPreset() {
+  currentPresetName = 'custom';
+}
+
+function applyPalette(next: PaletteColor[]) {
+  const fallback: PaletteColor[] = [[255, 255, 255]];
+  const safe = next.length ? next : fallback;
+  palette = safe;
+  config.palette = safe;
+  markCustomPreset();
+  rebuildBandCache();
+  refreshGlyphAtlas();
+}
+
+function applyGlyphs(next: string[]) {
+  const safe = next.length ? next : ['.'];
+  glyphs = safe;
+  config.glyphs = safe;
+  markCustomPreset();
+  rebuildBandCache();
+  refreshGlyphAtlas();
+}
+
+const paramDefs: ParamDef[] = [
+  { key: 'bandCount', label: 'Bands', min: 2, max: 32, step: 1, integer: true, affectsBand: true, syncWorker: true },
+  { key: 'scale', label: 'Scale', min: 0.01, max: 0.2, step: 0.001, affectsGrid: true, syncWorker: true },
+  { key: 'secondaryScale', label: 'Secondary Scale', min: 0.01, max: 0.3, step: 0.001, syncWorker: true },
+  { key: 'drift', label: 'Drift', min: 0, max: 1, step: 0.01, syncWorker: true },
+  { key: 'driftWaveAmp', label: 'Drift Wave Amp', min: 0, max: 1.5, step: 0.01, syncWorker: true },
+  { key: 'driftWaveFreq', label: 'Drift Wave Freq', min: 0, max: 4, step: 0.05, syncWorker: true },
+  { key: 'jitter', label: 'Jitter', min: 0, max: 1, step: 0.01 },
+  { key: 'waveAmp', label: 'Wave Amp', min: 0, max: 0.6, step: 0.01 },
+  { key: 'alphaBase', label: 'Alpha Base', min: 0, max: 1, step: 0.01 },
+  { key: 'alphaGain', label: 'Alpha Gain', min: 0, max: 1, step: 0.01 },
+  { key: 'warpStrength', label: 'Warp Strength', min: 0, max: 1, step: 0.01 },
+  { key: 'warpFrequency', label: 'Warp Frequency', min: 0, max: 3, step: 0.05 },
+  { key: 'quantizeSteps', label: 'Quantize', min: 0, max: 12, step: 1, integer: true, syncWorker: true },
+  { key: 'snapStrength', label: 'Snap', min: 0, max: 2, step: 0.01, syncWorker: true },
+  { key: 'anisotropy', label: 'Anisotropy', min: 0.2, max: 3, step: 0.01, syncWorker: true },
+  { key: 'spikeChance', label: 'Spike Chance', min: 0, max: 0.5, step: 0.01, syncWorker: true },
+  { key: 'spikeIntensity', label: 'Spike Intensity', min: 0, max: 2, step: 0.05, syncWorker: true }
+];
+
+function applyParamChange(def: ParamDef, rawValue: number) {
+  const numeric = Number(rawValue);
+  if (!Number.isFinite(numeric)) return;
+  const clamped = clamp(def.integer ? Math.round(numeric) : numeric, def.min, def.max);
+  (config as Record<string, number>)[def.key] = clamped;
+  markCustomPreset();
+  let needsBandCache = false;
+  let needsGridCache = false;
+  if (def.affectsBand) {
+    needsBandCache = true;
+  }
+  if (def.affectsGrid) {
+    needsGridCache = true;
+  }
+  if (needsBandCache) {
+    rebuildBandCache();
+  }
+  if (needsGridCache) {
+    rebuildGridCache();
+  }
+  if (needsBandCache || needsGridCache) {
+    refreshGlyphAtlas();
+  }
+  if (def.syncWorker) {
+    syncWorkerConfig();
+  }
+}
+
+function applyStyle(style: Config['style']) {
+  config.style = style;
+  markCustomPreset();
+  syncWorkerConfig();
 }
 
 function render(timeMs: number) {
@@ -775,6 +785,7 @@ function setConfig(next: Config, name: string) {
   rebuildBandCache();
   resizeCanvas();
   syncWorkerConfig();
+  dropdown?.syncAll();
 }
 
 function applyPreset(nextIndex: number) {
@@ -798,14 +809,20 @@ function applyPresetByName(name: string) {
 applyPresetByName(startPresetName);
 startNoiseWorker();
 syncWorkerConfig();
-updateToggleLabel();
-showChromeTemporarily();
-
-const wakeChrome = () => showChromeTemporarily();
-window.addEventListener('mousemove', wakeChrome);
-window.addEventListener('touchstart', wakeChrome, { passive: true });
-viewToggle?.addEventListener('click', toggleDisplayMode);
-viewToggle?.addEventListener('focus', showChromeTemporarily);
+dropdown = initDropdown({
+  getDisplayMode: () => displayMode,
+  onToggleDisplayMode: toggleDisplayMode,
+  getPalette: () => palette,
+  onPaletteChange: applyPalette,
+  getGlyphs: () => glyphs,
+  onGlyphChange: applyGlyphs,
+  paramDefs,
+  getParamValue: (key) => (config as Record<string, number>)[key],
+  onParamChange: applyParamChange,
+  getStyle: () => config.style,
+  onStyleChange: applyStyle
+});
+dropdown.syncAll();
 window.addEventListener('resize', resizeCanvas);
 requestAnimationFrame(render);
 

@@ -98,6 +98,360 @@ body:not(.controls-visible) .chrome {
   transform: translateY(-8px);
 }
 
+.command-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.command-toggle {
+  appearance: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(140deg, #050505, #0a0a0a 55%, #0e0e0e);
+  color: var(--fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.25s ease;
+}
+
+.command-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+  box-shadow: 0 20px 36px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.command-toggle:active {
+  transform: translateY(0);
+  background: linear-gradient(140deg, #040404, #090909 55%, #0c0c0c);
+}
+
+.command-toggle:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.26);
+  outline-offset: 3px;
+}
+
+.command-icon {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.command-icon span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--fg);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.command-panel {
+  width: min(320px, 68vw);
+  background: linear-gradient(160deg, rgba(8, 8, 8, 0.98), rgba(12, 12, 12, 0.95));
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 26px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  max-height: 80vh;
+  transition: opacity 0.22s ease, transform 0.22s ease, max-height 0.25s ease;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.command-shell:not(.open) .command-panel {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+  box-shadow: none;
+}
+
+.command-shell.open .command-panel {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.command-panel::-webkit-scrollbar {
+  display: none;
+}
+
+.command-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.section-label {
+  color: var(--fg);
+}
+
+.section-body {
+  display: flex;
+  gap: 8px;
+}
+
+.section-body.inline {
+  align-items: center;
+}
+
+.section-body.full {
+  flex-direction: column;
+}
+
+.chip-button {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fg);
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.chip-button:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.chip-button:active {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.chip-button.ghost {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.palette-input,
+.glyph-input,
+.param-number {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fg);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-family: 'DM Mono', 'Space Grotesk', monospace;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.palette-input:focus,
+.glyph-input:focus,
+.param-number:focus {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.style-body {
+  width: 100%;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.style-options {
+  width: 100%;
+  background: linear-gradient(160deg, rgba(10, 10, 10, 0.95), rgba(6, 6, 6, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 6px;
+}
+
+.style-option {
+  appearance: none;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--fg);
+  border-radius: 10px;
+  padding: 10px 8px;
+  font-family: 'DM Mono', 'Space Grotesk', monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.style-option:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.style-option:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.22);
+  outline-offset: 2px;
+}
+
+.style-option.active {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+}
+
+.glyph-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.swatch-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swatch {
+  position: relative;
+  width: 46px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--swatch-color, #fff);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 22px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.swatch::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.16), transparent 40%);
+  pointer-events: none;
+}
+
+.swatch button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  border: none;
+  background: rgba(0, 0, 0, 0.65);
+  color: var(--fg);
+  width: 16px;
+  height: 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.swatch:hover button {
+  opacity: 1;
+}
+
+.param-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.param-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.param-label {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  font-feature-settings: 'tnum';
+}
+
+.param-slider {
+  width: 100%;
+  appearance: none;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04));
+  outline: none;
+  cursor: pointer;
+}
+
+.param-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.param-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.param-number {
+  width: 64px;
+  text-align: right;
+  padding-right: 6px;
+  font-size: 11px;
+}
+
 .view-toggle {
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -218,5 +572,22 @@ body.theater-mode .glyph-mark::after {
   .view-toggle {
     padding: 9px 12px;
     gap: 8px;
+  }
+
+  .command-panel {
+    width: min(100%, 100vw - 28px);
+  }
+
+  .param-row {
+    grid-template-columns: 1fr;
+  }
+
+  .param-controls {
+    width: 100%;
+  }
+
+  .param-number {
+    width: 100%;
+    text-align: left;
   }
 }

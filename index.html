@@ -9,10 +9,67 @@
   <body>
     <div id="app" class="app-shell">
       <div class="chrome">
-        <button id="view-toggle" class="view-toggle" type="button" aria-pressed="false">
-          <span class="glyph-mark" aria-hidden="true"></span>
-          <span class="label">Theater Mode</span>
-        </button>
+        <div class="command-shell">
+          <button
+            id="command-toggle"
+            class="command-toggle"
+            type="button"
+            aria-label="Show controls"
+            aria-expanded="false"
+            aria-controls="command-panel"
+          >
+            <span class="command-icon" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+          </button>
+          <div id="command-panel" class="command-panel" hidden>
+            <button id="view-toggle" class="view-toggle" type="button" aria-pressed="false">
+              <span class="glyph-mark" aria-hidden="true"></span>
+              <span class="label">Theater Mode</span>
+            </button>
+            <div class="command-section palette-section">
+              <div class="section-top"><span class="section-label">Palette</span></div>
+              <div class="section-body inline">
+                <input
+                  id="palette-hex"
+                  class="palette-input"
+                  type="text"
+                  inputmode="text"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="#ff8800"
+                />
+                <button id="palette-add" class="chip-button" type="button">Add</button>
+              </div>
+              <div id="palette-swatches" class="swatch-list" aria-live="polite"></div>
+            </div>
+            <div class="command-section glyph-section">
+              <div class="section-top"><span class="section-label">Glyphs</span></div>
+              <div class="section-body full">
+                <textarea
+                  id="glyph-input"
+                  class="glyph-input"
+                  rows="2"
+                  spellcheck="false"
+                  autocomplete="off"
+                  aria-label="Glyph list"
+                ></textarea>
+              </div>
+            </div>
+            <div class="command-section style-section">
+              <div class="section-top"><span class="section-label">Styles</span></div>
+              <div class="section-body full style-body">
+                <div id="style-options" class="style-options"></div>
+              </div>
+            </div>
+            <div class="command-section param-section">
+              <div class="section-top"><span class="section-label">Parameters</span></div>
+              <div id="param-list" class="param-list"></div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="canvas-frame">
         <canvas id="glyph-canvas" aria-label="procedural glyph field"></canvas>
