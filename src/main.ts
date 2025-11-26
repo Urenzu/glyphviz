@@ -3,7 +3,7 @@ import { presets, type Preset } from './presets';
 import { initDropdown, type DropdownController } from './dropdown';
 import { type Config, type PaletteColor, type ParamDef } from './types';
 
-const startPresetName: string = 'Neon_Ouroboros'; // set to 'custom' or any preset name from presets.ts
+const startPresetName: string = 'LV_Monogram'; // set to 'custom' or any preset name from presets.ts
 const DEFAULT_GRID_SIZE = 100;
 let currentGridSize = DEFAULT_GRID_SIZE;
 

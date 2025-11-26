@@ -27,7 +27,57 @@ export type Preset = {
     | 'orbital'
     | 'cellular'
     | 'hearts'
-    | 'anomaly';
+    | 'anomaly'
+    | 'checker'
+    | 'hex_tiling'
+    | 'burst'
+    | 'isogrid'
+    | 'constellation'
+    | 'spiral'
+    | 'circuit'
+    | 'menger'
+    | 'stepper'
+    | 'quilt'
+    | 'mosaic'
+    | 'interference'
+    | 'voronoi_outline'
+    | 'scribe'
+    | 'spiral_net'
+    | 'herringbone'
+    | 'ripple'
+    | 'orbits'
+    | 'flecktarn'
+    | 'multicam'
+    | 'digital'
+    | 'tiger'
+    | 'kryptek'
+    | 'hex_camo'
+    | 'woodland'
+    | 'akira'
+    | 'lcl_hud'
+    | 'ghost_hud'
+    | 'bebop'
+    | 'moire'
+    | 'halftone'
+    | 'topo'
+    | 'storm_radar'
+    | 'matrix_rain'
+    | 'blueprint'
+    | 'carbon'
+    | 'paisley'
+    | 'starburst'
+    | 'radar_hud'
+    | 'lv_monogram'
+    | 'burberry'
+    | 'gucci'
+    | 'plaid'
+    | 'lace'
+    | 'ps2_bios'
+    | 'devils_heel'
+    | 'cheetah'
+    | 'floral'
+    | 'hemp'
+    | 'berserk';
   secondaryScale?: number;
   quantizeSteps?: number;
   snapStrength?: number;
@@ -1175,5 +1225,112 @@ export const presets: Preset[] = [
     spikeChance: 0.015,
     spikeIntensity: 0.3,
     seed: 8080
+  },
+  {
+    name: 'Lace_Parlor',
+    glyphs: ['·','•','°','◦','○','✽','✿','✣','❀','✺'],
+    palette: [
+      [8, 6, 16],
+      [32, 26, 46],
+      [140, 128, 160],
+      [218, 204, 224],
+      [247, 232, 240],
+      [255, 255, 255]
+    ],
+    bandCount: 14,
+    scale: 0.032,
+    secondaryScale: 0.08,
+    drift: 0.12,
+    driftWaveAmp: 0.08,
+    driftWaveFreq: 1.1,
+    jitter: 0.1,
+    waveAmp: 0.02,
+    alphaBase: 0.74,
+    alphaGain: 0.3,
+    warpStrength: 0.02,
+    warpFrequency: 0.4,
+    style: 'lace',
+    trailStrength: 0.36,
+    dualLayerStrength: 0.18,
+    axisBlend: 0.35,
+    seed: 4422
+  },
+  {
+    name: 'Devil_Wears_Prada',
+    glyphs: ['█'],
+    palette: [
+      [12, 12, 16],  // deep black
+      [210, 0, 30],  // blood red
+      [255, 255, 255] // white accent
+    ],
+    bandCount: 8,
+    scale: 0.02,
+    secondaryScale: 0.02,
+    drift: 0.06,
+    jitter: 0.05,
+    alphaBase: 0.95,
+    alphaGain: 0.02,
+    waveAmp: 0.0,
+    warpStrength: 0.0,
+    warpFrequency: 0.0,
+    style: 'devils_heel',
+    trailStrength: 0.0,
+    dualLayerStrength: 0.0,
+    axisBlend: 0.0,
+    driftWaveAmp: 0.0,
+    driftWaveFreq: 0.0,
+    seed: 666
+  },
+  {
+    name: 'Berserk_Brand',
+    glyphs: ['█'],
+    palette: [
+      [10, 10, 10], // black field
+      [210, 0, 0]   // blood red mark
+    ],
+    bandCount: 2,
+    scale: 0.0,
+    secondaryScale: 0.0,
+    drift: 0.0,
+    jitter: 0.0,
+    alphaBase: 1.0,
+    alphaGain: 0.0,
+    waveAmp: 0.0,
+    warpStrength: 0.0,
+    warpFrequency: 0.0,
+    style: 'berserk',
+    trailStrength: 0.0,
+    dualLayerStrength: 0.0,
+    axisBlend: 0.0,
+    driftWaveAmp: 0.0,
+    driftWaveFreq: 0.0,
+    seed: 666
+  },
+  {
+    name: 'LV_Monogram',
+    glyphs: ['✦','✧','✣','✤','◆','◈'],
+    palette: [
+      [40, 24, 12],   // deep cocoa
+      [64, 40, 20],   // rich brown
+      [196, 146, 64], // classic gold
+      [240, 206, 130] // soft highlight gold
+    ],
+    bandCount: 6,
+    scale: 0.015,
+    secondaryScale: 0.015,
+    drift: 0.0,
+    jitter: 0.02,
+    alphaBase: 0.92,
+    alphaGain: 0.04,
+    waveAmp: 0.0,
+    warpStrength: 0.0,
+    warpFrequency: 0.0,
+    style: 'lv_monogram',
+    trailStrength: 0.0,
+    dualLayerStrength: 0.0,
+    axisBlend: 0.0,
+    driftWaveAmp: 0.0,
+    driftWaveFreq: 0.0,
+    seed: 1854
   }
 ];
