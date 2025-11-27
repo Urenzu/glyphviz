@@ -3,7 +3,7 @@ import { presets, type Preset } from './presets';
 import { initDropdown, type DropdownController } from './dropdown';
 import { type Config, type PaletteColor, type ParamDef } from './types';
 
-const startPresetName: string = 'LV_Monogram'; // set to 'custom' or any preset name from presets.ts
+const startPresetName: string = 'custom'; // set to 'custom' or any preset name from presets.ts
 const DEFAULT_GRID_SIZE = 100;
 let currentGridSize = DEFAULT_GRID_SIZE;
 
@@ -902,19 +902,6 @@ function render(timeMs: number) {
             const shell = 1 - Math.min(1, diff * 1.8);
             const pocket = Math.max(n1, n2) * 0.5 + noise.noise(nx * 0.7, ny * 0.7) * 0.5;
             n = shell * 0.7 + pocket * 0.3;
-            break;
-          }
-          case 'hearts': {
-            const tiles = 6;
-            const localX = ((x / cols) * tiles) % 1;
-            const localY = ((y / rows) * tiles) % 1;
-            const hx = (localX - 0.5) * 2;
-            const hy = (localY - 0.5) * -2;
-            const shape = Math.pow(hx * hx + hy * hy - 1, 3) - hx * hx * hy * hy * hy;
-            const beat = fastSin(t * 3 + (hx + hy) * 6) * 0.2;
-            const fill = Math.tanh(-shape * 3);
-            const shimmer = noise.noise(nx * 0.6 + beat, ny * 0.6 - beat) * 0.35;
-            n = Math.max(-1, Math.min(1, fill + beat + shimmer));
             break;
           }
           case 'anomaly': {

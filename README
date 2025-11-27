@@ -7,3 +7,6 @@ Setup
 - `npm install`
 - `npm run dev` to start the Vite dev server (open the printed URL).
 - `npm run build` for a production build, `npm run preview` to serve it locally.
+
+TODO:
+- Visuals / enhance resolution

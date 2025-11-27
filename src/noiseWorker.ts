@@ -34,10 +34,8 @@ type WorkerConfig = {
     | 'flow'
     | 'orbital'
     | 'cellular'
-    | 'hearts'
     | 'anomaly'
     | 'checker'
-    | 'hex_tiling'
     | 'burst'
     | 'isogrid'
     | 'constellation'
@@ -45,47 +43,30 @@ type WorkerConfig = {
     | 'circuit'
     | 'menger'
     | 'stepper'
-    | 'quilt'
     | 'mosaic'
     | 'interference'
     | 'voronoi_outline'
     | 'scribe'
     | 'spiral_net'
-    | 'herringbone'
     | 'ripple'
     | 'orbits'
     | 'flecktarn'
     | 'multicam'
-    | 'digital'
     | 'tiger'
     | 'kryptek'
-    | 'hex_camo'
     | 'woodland'
     | 'akira'
     | 'lcl_hud'
     | 'ghost_hud'
     | 'bebop'
     | 'moire'
-    | 'halftone'
     | 'topo'
     | 'storm_radar'
     | 'matrix_rain'
-    | 'blueprint'
     | 'carbon'
-    | 'paisley'
-    | 'starburst'
-    | 'radar_hud'
-    | 'lv_monogram'
-    | 'burberry'
-    | 'gucci'
-    | 'plaid'
-    | 'lace'
-    | 'ps2_bios'
-    | 'devils_heel'
-    | 'cheetah'
-    | 'floral'
-    | 'hemp'
-    | 'berserk';
+    | 'naruto_clouds'
+    | 'rays'
+    | 'cheetah';
   seed: number;
 };
 
@@ -220,17 +201,6 @@ function worley(x: number, y: number, seed: number): number {
     }
   }
   return minDist;
-}
-
-function clamp01(v: number): number {
-  if (v < 0) return 0;
-  if (v > 1) return 1;
-  return v;
-}
-
-function smoothstep(edge0: number, edge1: number, x: number): number {
-  const t = clamp01((x - edge0) / (edge1 - edge0));
-  return t * t * (3 - 2 * t);
 }
 
 function fract(v: number): number {
@@ -469,20 +439,6 @@ function computeFrame(timeMs: number) {
           n = membrane * 0.7 + nucleus * 0.3;
           break;
         }
-        case 'hearts': {
-          const tiles = 6;
-          const localX = ((x / cols) * tiles) % 1;
-          const localY = ((y / rows) * tiles) % 1;
-          const hx = (localX - 0.5) * 2;
-          const hy = (localY - 0.5) * -2;
-          const shape =
-            Math.pow(hx * hx + hy * hy - 1, 3) - hx * hx * hy * hy * hy;
-          const beat = fastSin(t * 3 + (hx + hy) * 6) * 0.2;
-          const fill = Math.tanh(-shape * 3);
-          const shimmer = noise.noise(nx * 0.6 + beat, ny * 0.6 - beat) * 0.35;
-          n = Math.max(-1, Math.min(1, fill + beat + shimmer));
-          break;
-        }
         case 'anomaly': {
           let sx = nx;
           let sy = ny;
@@ -508,18 +464,6 @@ function computeFrame(timeMs: number) {
           const weave = fastSin(normX * tiles * TAU) * fastSin(normY * tiles * TAU);
           const texture = noise.noise(nx * 1.4, ny * 1.4) * 0.3;
           n = parity * 0.65 + weave * 0.2 + texture;
-          break;
-        }
-        case 'hex_tiling': {
-          const scaleHex = 10;
-          const px = normX * scaleHex;
-          const py = normY * scaleHex;
-          const a = Math.abs(fract(px) - 0.5);
-          const b = Math.abs(fract(py) - 0.5);
-          const c = Math.abs(fract(px + py) - 0.5);
-          const edge = Math.min(a, Math.min(b, c));
-          const cellNoise = noise.noise(Math.floor(px) * 0.7, Math.floor(py) * 0.7);
-          n = (1 - Math.min(1, edge * 3.5)) * 0.8 + cellNoise * 0.2 - 0.2;
           break;
         }
         case 'burst': {
@@ -611,29 +555,6 @@ function computeFrame(timeMs: number) {
           n = stairs;
           break;
         }
-        case 'quilt': {
-          const tiles = 6;
-          const tx = Math.floor(normX * tiles);
-          const ty = Math.floor(normY * tiles);
-          const lx = fract(normX * tiles);
-          const ly = fract(normY * tiles);
-          const choice = Math.floor(hash2(tx, ty, seed + 101) * 4);
-          let patch = 0;
-          if (choice === 0) {
-            patch = 1 - Math.min(1, Math.abs(lx - ly) * 4);
-          } else if (choice === 1) {
-            patch = 1 - Math.min(1, Math.min(Math.abs(lx - 0.5), Math.abs(ly - 0.5)) * 8);
-          } else if (choice === 2) {
-            const tri = ly < lx ? ly : 1 - ly;
-            patch = 1 - Math.min(1, Math.abs(tri - 0.5) * 6);
-          } else {
-            const circle = Math.hypot(lx - 0.5, ly - 0.5);
-            patch = 1 - Math.min(1, circle * 4);
-          }
-          const stitch = fastSin((lx + ly) * 30) * 0.2;
-          n = patch * 0.85 + stitch - 0.2;
-          break;
-        }
         case 'mosaic': {
           const dx = normX - 0.5;
           const dy = normY - 0.5;
@@ -693,22 +614,6 @@ function computeFrame(timeMs: number) {
           n = mesh * 0.85 - 0.2;
           break;
         }
-        case 'herringbone': {
-          const freq = 18;
-          const u = normX * freq;
-          const v = normY * freq;
-          const hx = Math.floor(u);
-          const hy = Math.floor(v);
-          const parity = (hx + hy) & 1;
-          const lx = fract(u);
-          const ly = fract(v);
-          const diag = parity === 0 ? Math.abs(lx - ly) : Math.abs(lx + ly - 1);
-          const mortar = 1 - Math.min(1, diag * 6);
-          const groove = Math.min(Math.abs(lx - 0.5), Math.abs(ly - 0.5));
-          const depth = 1 - Math.min(1, groove * 8);
-          n = mortar * 0.6 + depth * 0.25 - 0.2;
-          break;
-        }
         case 'ripple': {
           const dx = normX - 0.5;
           const dy = normY - 0.5;
@@ -751,16 +656,6 @@ function computeFrame(timeMs: number) {
           n = blend * 0.7 + vines * 0.3;
           break;
         }
-        case 'digital': {
-          const stepLarge = 0.05;
-          const stepSmall = 0.02;
-          const qx = Math.floor(normX / stepLarge);
-          const qy = Math.floor(normY / stepLarge);
-          const block = noise.noise(qx * 0.7, qy * 0.7);
-          const micro = noise.noise(Math.floor(normX / stepSmall), Math.floor(normY / stepSmall));
-          n = block * 0.7 + micro * 0.3;
-          break;
-        }
         case 'tiger': {
           const diag = normX * 1.6 - normY * 1.2;
           const stripe = fastSin(diag * 18 + t * 0.8);
@@ -776,19 +671,6 @@ function computeFrame(timeMs: number) {
           const shell = 1 - Math.abs(d1 - d2) * 3;
           const outline = Math.exp(-Math.min(d1, d2) * 14);
           n = shell * 0.6 + outline * 0.4 - 0.2;
-          break;
-        }
-        case 'hex_camo': {
-          const freq = 9;
-          const px = normX * freq;
-          const py = normY * freq;
-          const a = Math.abs(fract(px) - 0.5);
-          const b = Math.abs(fract(py) - 0.5);
-          const c = Math.abs(fract(px + py) - 0.5);
-          const edge = Math.min(a, Math.min(b, c));
-          const outline = 1 - Math.min(1, edge * 10);
-          const fillNoise = noise.noise(Math.floor(px) * 0.9, Math.floor(py) * 0.9);
-          n = outline * 0.75 + fillNoise * 0.25 - 0.2;
           break;
         }
         case 'woodland': {
@@ -811,6 +693,24 @@ function computeFrame(timeMs: number) {
           const grid = 1 - Math.min(1, Math.min(gridX, gridY) * 20);
           const shock = Math.exp(-Math.abs(radius - 0.32) * 80);
           n = streaks * 0.55 + rings * 0.35 + grid * 0.2 + shock * 0.5 - 0.25;
+          break;
+        }
+        case 'naruto_clouds': {
+          let clouds = -0.3;
+          for (let i = 0; i < 3; i += 1) {
+            const orbit = t * (0.12 + i * 0.02);
+            const cx = 0.5 + fastSin(orbit + i) * (0.25 + i * 0.05);
+            const cy = 0.5 + fastCos(orbit * 1.2 + i * 0.8) * (0.2 + i * 0.04);
+            const dxCloud = normX - cx;
+            const dyCloud = normY - cy;
+            const r = Math.hypot(dxCloud, dyCloud);
+            const swirl = fastSin(Math.atan2(dyCloud, dxCloud) * 4 + Math.log1p(r) * 35 - t * 0.8 + i);
+            const puff = Math.exp(-r * (7 + i * 3));
+            const edge = Math.exp(-Math.abs(swirl) * 2);
+            clouds = Math.max(clouds, puff * 0.7 + edge * 0.3 - r * 0.5);
+          }
+          const wisps = fastSin(normY * 30 + t * 1.4) * 0.1 + fastSin(normX * 18 - t * 1.1) * 0.1;
+          n = clouds + wisps;
           break;
         }
         case 'lcl_hud': {
@@ -854,17 +754,6 @@ function computeFrame(timeMs: number) {
           n = (base - offset) * 0.7;
           break;
         }
-        case 'halftone': {
-          const dots = 18;
-          const lx = fract(normX * dots) - 0.5;
-          const ly = fract(normY * dots * 1.4) - 0.5;
-          const dist = Math.hypot(normX - 0.25, normY - 0.25);
-          const size = clamp01(1 - dist * 1.8);
-          const radius = Math.hypot(lx, ly);
-          const dot = size - radius * dots * 0.8;
-          n = dot;
-          break;
-        }
         case 'topo': {
           const height = noise.noise(nx * 0.35, ny * 0.35);
           const contour = Math.abs(fract(height * 8 + t * 0.02) - 0.5);
@@ -901,16 +790,6 @@ function computeFrame(timeMs: number) {
           n = brightness * 0.9 + drizzle - 0.2;
           break;
         }
-        case 'blueprint': {
-          const isoA = Math.abs(fract((normX + normY) * 12) - 0.5);
-          const isoB = Math.abs(fract((normX - normY) * 12) - 0.5);
-          const grid = 1 - Math.min(1, Math.min(isoA, isoB) * 20);
-          const ticksX = 1 - Math.min(1, Math.abs(fract(normX * 24) - 0.5) * 40);
-          const ticksY = 1 - Math.min(1, Math.abs(fract(normY * 24) - 0.5) * 40);
-          const notes = fastSin(normX * 40 + fastSin(normY * 40)) * 0.1;
-          n = grid * 0.6 + (ticksX + ticksY) * 0.15 + notes - 0.2;
-          break;
-        }
         case 'carbon': {
           const warp = normY + fastSin(normX * 20 + t * 0.5) * 0.01;
           const u = fract((normX + warp) * 24);
@@ -922,125 +801,12 @@ function computeFrame(timeMs: number) {
           n = weave * 0.85 + highlight - 0.2;
           break;
         }
-        case 'paisley': {
-          const dx = normX - 0.5;
-          const dy = normY - 0.5;
-          const angle = Math.atan2(dy, dx);
-          const radius = Math.hypot(dx, dy);
-          const teardrop = radius - 0.35 - 0.15 * fastSin(angle * 2);
-          const ring = Math.abs(fract(radius * 6) - 0.5);
-          const outline = Math.exp(-Math.abs(teardrop) * 40);
-          n = outline * 0.8 + (1 - Math.min(1, ring * 12)) * 0.2 - 0.2;
-          break;
-        }
-        case 'starburst': {
-          const dx = normX - 0.5;
-          const dy = normY - 0.5;
-          const radius = Math.hypot(dx, dy);
-          const angle = Math.atan2(dy, dx);
-          const slices = 16;
-          const wedge = Math.abs(fract((angle / TAU) * slices) - 0.5);
-          const arms = 1 - Math.min(1, wedge * 8);
-          const core = Math.exp(-radius * 20);
-          n = arms * (1 - radius) * 0.9 + core - 0.2;
-          break;
-        }
-        case 'radar_hud': {
-          const dx = normX - 0.5;
-          const dy = normY - 0.5;
-          const radius = Math.hypot(dx, dy);
-          const angle = Math.atan2(dy, dx);
-          const crossX = 1 - Math.min(1, Math.abs(dx) * 60);
-          const crossY = 1 - Math.min(1, Math.abs(dy) * 60);
-          const rings = Math.exp(-Math.abs(fract(radius * 5) - 0.5) * 35);
-          const sweepAngle = (t * 0.6) % TAU;
-          const diff = Math.atan2(Math.sin(angle - sweepAngle), Math.cos(angle - sweepAngle));
-          const sweep = Math.exp(-Math.abs(diff) * 12);
-          n = rings * 0.6 + (crossX + crossY) * 0.15 + sweep * (1 - radius) * 0.4 - 0.2;
-          break;
-        }
-        case 'lv_monogram': {
-          const tiles = 6;
-          const tx = Math.floor(normX * tiles);
-          const ty = Math.floor(normY * tiles);
-          const localX = fract(normX * tiles) - 0.5;
-          const localY = fract(normY * tiles) - 0.5;
-          const motif = (tx + ty) % 4;
-          let mask = 0;
-          if (motif === 0) {
-            mask = 1 - Math.min(1, Math.hypot(localX, localY) * 6);
-          } else if (motif === 1) {
-            mask = 1 - Math.min(1, Math.abs(localX * localY * 24));
-          } else if (motif === 2) {
-            mask = 1 - Math.min(1, Math.abs(localX) * 12);
-          } else {
-            mask = 1 - Math.min(1, Math.abs(localY) * 12);
-          }
-          const lattice = Math.abs(localX + localY) < 0.02 ? 0.8 : 0;
-          n = mask * 0.8 + lattice - 0.2;
-          break;
-        }
-        case 'burberry': {
-          const tan = fastSin(normY * 4);
-          const redStripe = Math.exp(-Math.abs(fract(normX * 6 + 0.1) - 0.5) * 40);
-          const blackStripe = Math.exp(-Math.abs(fract(normX * 6) - 0.5) * 80);
-          const horizontal = Math.exp(-Math.abs(fract(normY * 12) - 0.5) * 40);
-          n = tan * 0.2 + redStripe * 0.6 + blackStripe * 0.4 + horizontal * 0.4 - 0.2;
-          break;
-        }
-        case 'gucci': {
-          const freq = 8;
-          const px = normX * freq;
-          const py = normY * freq;
-          const hx = Math.abs(fract(px) - 0.5);
-          const hy = Math.abs(fract(py) - 0.5);
-          const diag = Math.abs(fract(px + py) - 0.5);
-          const lattice = 1 - Math.min(1, Math.min(hx, Math.min(hy, diag)) * 18);
-          const motif = fastSin(Math.floor(px) + Math.floor(py) * 1.5);
-          n = lattice * 0.75 + motif * 0.25 - 0.2;
-          break;
-        }
-        case 'plaid': {
-          const baseY = Math.exp(-Math.abs(fract(normY * 8) - 0.5) * 25);
-          const baseX = Math.exp(-Math.abs(fract(normX * 8) - 0.5) * 25);
-          const accentY = Math.exp(-Math.abs(fract(normY * 16 + 0.2) - 0.5) * 40);
-          const accentX = Math.exp(-Math.abs(fract(normX * 16 - 0.15) - 0.5) * 40);
-          const hatching = fastSin(normX * 60 + normY * 60) * 0.1;
-          n = baseY * 0.4 + baseX * 0.4 + accentY * 0.3 + accentX * 0.3 + hatching - 0.2;
-          break;
-        }
-        case 'lace': {
-          const tiles = 6;
-          const tx = Math.floor(normX * tiles);
-          const ty = Math.floor(normY * tiles);
-          const localX = fract(normX * tiles) - 0.5;
-          const localY = fract(normY * tiles) - 0.5;
-          const radius = Math.hypot(localX, localY);
-          const petals = Math.abs(fastSin(Math.atan2(localY, localX) * 6));
-          const motif = Math.exp(-radius * 10) * petals;
-          const border = Math.abs(fract(radius * 6) - 0.5);
-          const holes = 1 - Math.min(1, border * 12);
-          const net = Math.abs(fract((normX + normY) * 12) - 0.5);
-          const mesh = 1 - Math.min(1, net * 18);
-          n = motif * 0.7 + holes * 0.2 + mesh * 0.1 - 0.2;
-          break;
-        }
-        case 'ps2_bios': {
+        case 'rays': {
           const horizon = normY;
           const rays = fastSin(normX * 60 + t * 3) * (1 - horizon) * 0.6;
           const cubes = Math.exp(-Math.abs(fract((normX + t * 0.1) * 6) - 0.5) * 30) * (1 - horizon * 1.4);
           const fog = (1 - horizon) * 0.5;
           n = rays * 0.6 + cubes * 0.4 + fog - 0.2;
-          break;
-        }
-        case 'devils_heel': {
-          const tiles = 5;
-          const lx = fract(normX * tiles) - 0.5;
-          const ly = fract(normY * tiles) - 0.5;
-          const stem = Math.exp(-Math.abs(lx + 0.1) * 30) * smoothstep(-0.5, 0, ly);
-          const heel = Math.exp(-Math.abs(ly + 0.2) * 40) * smoothstep(0, 0.4, -lx + 0.1);
-          const spike = Math.exp(-Math.abs(lx - 0.25) * 50) * smoothstep(0.1, 0.4, ly + 0.5);
-          n = (stem + heel + spike) * 0.9 - 0.2;
           break;
         }
         case 'cheetah': {
@@ -1050,42 +816,6 @@ function computeFrame(timeMs: number) {
           const spot = d < 0.22 ? 1 - d * 4 : 0;
           const ring = d < 0.32 && d >= 0.22 ? (0.32 - d) * 5 : 0;
           n = spot * 0.8 + ring * 0.4 - 0.2;
-          break;
-        }
-        case 'floral': {
-          const dx = normX - 0.5;
-          const dy = normY - 0.5;
-          const r = Math.hypot(dx, dy);
-          const angle = Math.atan2(dy, dx);
-          const petals = Math.abs(fastSin(angle * 8)) * (1 - r);
-          const rings = Math.exp(-Math.abs(fract(r * 6) - 0.5) * 18);
-          n = petals * 0.7 + rings * 0.3 - 0.1;
-          break;
-        }
-        case 'hemp': {
-          const tiles = 4;
-          const lx = fract(normX * tiles) - 0.5;
-          const ly = fract(normY * tiles) - 0.5;
-          const r = Math.hypot(lx, ly);
-          const angle = Math.atan2(ly, lx);
-          const lobes = Math.abs(fastSin(angle * 5));
-          const leaf = Math.exp(-Math.abs(r - 0.25) * 18) * lobes;
-          const stem = Math.exp(-Math.abs(lx) * 40) * smoothstep(0, 0.3, -ly + 0.2);
-          n = (leaf + stem) * 0.9 - 0.2;
-          break;
-        }
-        case 'berserk': {
-          const stroke = (ax: number, ay: number, bx: number, by: number, width: number) => {
-            const d = segmentDistance(normX, normY, ax, ay, bx, by);
-            return Math.exp(-d * width);
-          };
-          const v = stroke(0.5, 0.18, 0.5, 0.82, 140);
-          const diag1 = stroke(0.32, 0.32, 0.68, 0.68, 120);
-          const diag2 = stroke(0.68, 0.32, 0.32, 0.68, 120);
-          const hornL = stroke(0.5, 0.18, 0.42, 0.1, 140);
-          const hornR = stroke(0.5, 0.18, 0.58, 0.1, 140);
-          const mask = Math.max(v, diag1, diag2, hornL, hornR);
-          n = mask * 1.3 - 0.3;
           break;
         }
         case 'perlin':

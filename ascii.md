@@ -2,7 +2,7 @@
 
 Reference grab‑bag of glyph sets for building presets or experiments. Each block is a copy‑pasteable array literal. Non‑ASCII characters are intentionally included for PETSCII/CP437/Unicode richness.
 
-## Ready-made themes (30)
+## Ready-made themes (42)
 
 1) Minimal ASCII
 ```
@@ -197,6 +197,21 @@ Reference grab‑bag of glyph sets for building presets or experiments. Each blo
 39) Hebrew
 ```
 ['א','ב','ג','ד','ה','ו','ז','ח','ט','י','כ','ל','מ','נ','ס','ע','פ','צ','ק','ר','ש','ת']
+```
+
+40) Retro snakes / CRT crawl
+```
+['.', '-', '_', '~', '˜', 'o', 'O', '◉', '◎', '✦']
+```
+
+41) Retro Tetris blocks
+```
+['▢','▣','▤','▥','▦','▧','▨','▩','▤','▥','▦']
+```
+
+42) Naruto-style clouds
+```
+['·','∙','○','◍','◎','雲','風','✦','✧']
 ```
 
 40) Japanese extras (ornamental/cool)
